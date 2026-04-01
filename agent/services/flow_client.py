@@ -178,7 +178,12 @@ class FlowClient:
                               aspect_ratio: str = "VIDEO_ASPECT_RATIO_PORTRAIT",
                               end_image_media_id: str = None,
                               user_paygate_tier: str = "PAYGATE_TIER_TWO") -> dict:
-        """Generate video from start image (optionally with end image)."""
+        """Generate video from start image (i2v).
+
+        Two sub-types:
+        - frame_2_video (i2v): startImage only
+        - start_end_frame_2_video (i2v_fl): startImage + endImage (for scene chaining)
+        """
         gen_type = "start_end_frame_2_video" if end_image_media_id else "frame_2_video"
         model_key = VIDEO_MODELS.get(user_paygate_tier, {}).get(gen_type, {}).get(aspect_ratio)
 
@@ -211,6 +216,50 @@ class FlowClient:
             "body": body,
             "captchaAction": "VIDEO_GENERATION",
         }, timeout=60)  # Submit only — polling is separate
+
+    async def generate_video_from_references(self, reference_media_ids: list[str],
+                                              prompt: str, project_id: str, scene_id: str,
+                                              aspect_ratio: str = "VIDEO_ASPECT_RATIO_PORTRAIT",
+                                              user_paygate_tier: str = "PAYGATE_TIER_TWO") -> dict:
+        """Generate video from multiple reference images (r2v).
+
+        Uses referenceImages instead of startImage — the model composes
+        a video from all provided reference character images.
+
+        Args:
+            reference_media_ids: List of character media_gen_ids (from uploadUserImage)
+        """
+        gen_type = "reference_frame_2_video"
+        model_key = VIDEO_MODELS.get(user_paygate_tier, {}).get(gen_type, {}).get(aspect_ratio)
+
+        if not model_key:
+            return {"error": f"No model for tier={user_paygate_tier} type={gen_type} ratio={aspect_ratio}"}
+
+        request = {
+            "aspectRatio": aspect_ratio,
+            "seed": int(time.time()) % 10000,
+            "textInput": {"prompt": prompt},
+            "videoModelKey": model_key,
+            "referenceImages": [
+                {"mediaId": mid, "imageUsageType": "IMAGE_USAGE_TYPE_ASSET"}
+                for mid in reference_media_ids
+            ],
+            "metadata": {"sceneId": scene_id},
+        }
+
+        body = {
+            "clientContext": self._client_context(project_id, user_paygate_tier),
+            "requests": [request],
+        }
+
+        url = self._build_url("generate_video_references")
+        return await self._send("api_request", {
+            "url": url,
+            "method": "POST",
+            "headers": random_headers(),
+            "body": body,
+            "captchaAction": "VIDEO_GENERATION",
+        }, timeout=60)
 
     async def upscale_video(self, media_gen_id: str, scene_id: str,
                              aspect_ratio: str = "VIDEO_ASPECT_RATIO_PORTRAIT",

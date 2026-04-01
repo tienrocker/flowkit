@@ -24,6 +24,15 @@ class GenerateVideoRequest(BaseModel):
     user_paygate_tier: str = "PAYGATE_TIER_TWO"
 
 
+class GenerateVideoRefsRequest(BaseModel):
+    reference_media_ids: list[str]
+    prompt: str
+    project_id: str
+    scene_id: str
+    aspect_ratio: str = "VIDEO_ASPECT_RATIO_PORTRAIT"
+    user_paygate_tier: str = "PAYGATE_TIER_TWO"
+
+
 class UpscaleVideoRequest(BaseModel):
     media_gen_id: str
     scene_id: str
@@ -76,6 +85,18 @@ async def generate_video(body: GenerateVideoRequest):
     if not client.connected:
         raise HTTPException(503, "Extension not connected")
     result = await client.generate_video(**body.model_dump(exclude_none=True))
+    if result.get("error") or (isinstance(result.get("status"), int) and result["status"] >= 400):
+        raise HTTPException(result.get("status", 502), result.get("error", result.get("data")))
+    return result.get("data", result)
+
+
+@router.post("/generate-video-refs")
+async def generate_video_refs(body: GenerateVideoRefsRequest):
+    """Submit r2v video generation from reference images."""
+    client = get_flow_client()
+    if not client.connected:
+        raise HTTPException(503, "Extension not connected")
+    result = await client.generate_video_from_references(**body.model_dump())
     if result.get("error") or (isinstance(result.get("status"), int) and result["status"] >= 400):
         raise HTTPException(result.get("status", 502), result.get("error", result.get("data")))
     return result.get("data", result)

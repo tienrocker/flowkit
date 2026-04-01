@@ -51,6 +51,8 @@ async def _process_one(client, req: dict):
             result = await _handle_generate_image(client, req, orientation)
         elif req_type == "GENERATE_VIDEO":
             result = await _handle_generate_video(client, req, orientation)
+        elif req_type == "GENERATE_VIDEO_REFS":
+            result = await _handle_generate_video_refs(client, req, orientation)
         elif req_type == "UPSCALE_VIDEO":
             result = await _handle_upscale_video(client, req, orientation)
         elif req_type == "GENERATE_CHARACTER_IMAGE":
@@ -101,7 +103,7 @@ async def _mark_scene_failed(req: dict):
     updates = {}
     if req_type == "GENERATE_IMAGES":
         updates[f"{prefix}_image_status"] = "FAILED"
-    elif req_type == "GENERATE_VIDEO":
+    elif req_type in ("GENERATE_VIDEO", "GENERATE_VIDEO_REFS"):
         updates[f"{prefix}_video_status"] = "FAILED"
     elif req_type == "UPSCALE_VIDEO":
         updates[f"{prefix}_upscale_status"] = "FAILED"
@@ -136,7 +138,7 @@ def _extract_media_gen_id(result: dict, req_type: str) -> str:
             gen = media[0].get("image", {}).get("generatedImage", {})
             return gen.get("mediaGenerationId", "")
 
-    if req_type in ("GENERATE_VIDEO", "UPSCALE_VIDEO"):
+    if req_type in ("GENERATE_VIDEO", "GENERATE_VIDEO_REFS", "UPSCALE_VIDEO"):
         # After polling: data.operations[].response.generatedVideos[].mediaGenerationId
         ops = data.get("operations", [])
         if ops:
@@ -160,7 +162,7 @@ def _extract_output_url(result: dict, req_type: str) -> str:
             gen = media[0].get("image", {}).get("generatedImage", {})
             return gen.get("imageUri", gen.get("fifeUrl", ""))
 
-    if req_type in ("GENERATE_VIDEO", "UPSCALE_VIDEO"):
+    if req_type in ("GENERATE_VIDEO", "GENERATE_VIDEO_REFS", "UPSCALE_VIDEO"):
         ops = data.get("operations", [])
         if ops:
             resp = ops[0].get("response", {})
@@ -408,6 +410,79 @@ async def _handle_generate_video(client, req: dict, orientation: str) -> dict:
     return await _poll_operations(client, operations)
 
 
+# ─── R2V: Video from References (async — needs polling) ─────
+
+async def _handle_generate_video_refs(client, req: dict, orientation: str) -> dict:
+    """Generate video from multiple character reference images (r2v).
+
+    Instead of startImage (i2v), uses referenceImages — a list of character
+    media_gen_ids. The model composes a video from all references.
+    """
+    scene = await crud.get_scene(req["scene_id"]) if req.get("scene_id") else None
+    if not scene:
+        return {"error": "Scene not found"}
+
+    project = await crud.get_project(req["project_id"]) if req.get("project_id") else None
+    aspect = "VIDEO_ASPECT_RATIO_PORTRAIT" if orientation == "VERTICAL" else "VIDEO_ASPECT_RATIO_LANDSCAPE"
+    prompt = scene.get("video_prompt") or scene.get("prompt", "")
+    tier = project.get("user_paygate_tier", "PAYGATE_TIER_TWO") if project else "PAYGATE_TIER_TWO"
+
+    # Get character media_gen_ids
+    char_names_raw = scene.get("character_names")
+    if isinstance(char_names_raw, str):
+        try:
+            char_names_raw = json.loads(char_names_raw)
+        except json.JSONDecodeError:
+            char_names_raw = []
+
+    if not char_names_raw or not req.get("project_id"):
+        return {"error": "No characters for r2v video generation"}
+
+    project_chars = await crud.get_project_characters(req["project_id"])
+    ref_ids = []
+    for c in project_chars:
+        if c["name"] not in char_names_raw:
+            continue
+        mid = c.get("media_gen_id")
+        if mid:
+            is_valid = await client.validate_media_id(mid)
+            if is_valid:
+                ref_ids.append(mid)
+                continue
+            # Re-upload
+            logger.warning("Character %s media_gen_id expired for r2v, re-uploading", c["name"])
+            new_mid = await _upload_character_image(client, c, aspect)
+            if new_mid:
+                await crud.update_character(c["id"], media_gen_id=new_mid)
+                ref_ids.append(new_mid)
+
+    if not ref_ids:
+        return {"error": "No valid character media_gen_ids for r2v"}
+
+    # Submit r2v
+    submit_result = await client.generate_video_from_references(
+        reference_media_ids=ref_ids,
+        prompt=prompt,
+        project_id=req.get("project_id", "0"),
+        scene_id=req.get("scene_id", ""),
+        aspect_ratio=aspect,
+        user_paygate_tier=tier,
+    )
+
+    if _is_error(submit_result):
+        return submit_result
+
+    operations = _extract_operations(submit_result)
+    if not operations:
+        return {"error": "R2V returned no operations"}
+
+    op_name = operations[0].get("name", "")
+    await crud.update_request(req["id"], request_id=op_name)
+
+    logger.info("R2V submitted with %d refs, polling %d operations...", len(ref_ids), len(operations))
+    return await _poll_operations(client, operations)
+
+
 # ─── W8: Upscale Video (async — needs polling) ──────────────
 
 async def _handle_upscale_video(client, req: dict, orientation: str) -> dict:
@@ -501,7 +576,7 @@ async def _update_scene_from_result(req: dict, orientation: str, media_gen_id: s
         updates[f"{prefix}_upscale_status"] = "PENDING"
         logger.info("Cascade clear: %s video + upscale reset for scene %s (image regen)", prefix, scene_id[:8])
 
-    elif req_type == "GENERATE_VIDEO":
+    elif req_type in ("GENERATE_VIDEO", "GENERATE_VIDEO_REFS"):
         # Set new video data
         updates[f"{prefix}_video_media_gen_id"] = media_gen_id
         updates[f"{prefix}_video_url"] = output_url
