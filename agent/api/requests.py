@@ -18,7 +18,9 @@ class RequestUpdate(BaseModel):
 
 @router.post("", response_model=Request)
 async def create(body: RequestCreate):
-    return await crud.create_request(**body.model_dump(exclude_none=True))
+    data = body.model_dump(exclude_none=True)
+    data["req_type"] = data.pop("type")
+    return await crud.create_request(**data)
 
 
 @router.get("", response_model=list[Request])

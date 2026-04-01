@@ -1,4 +1,5 @@
 """Configuration constants."""
+import json
 import os
 from pathlib import Path
 
@@ -24,42 +25,14 @@ POLL_INTERVAL = int(os.environ.get("POLL_INTERVAL", "5"))
 MAX_RETRIES = int(os.environ.get("MAX_RETRIES", "5"))
 VIDEO_POLL_TIMEOUT = int(os.environ.get("VIDEO_POLL_TIMEOUT", "420"))
 
-# ─── Video Model Keys ───────────────────────────────────────
-VIDEO_MODELS = {
-    "PAYGATE_TIER_TWO": {
-        "frame_2_video": {
-            "VIDEO_ASPECT_RATIO_LANDSCAPE": "veo_3_1_i2v_s_fast_ultra",
-            "VIDEO_ASPECT_RATIO_PORTRAIT": "veo_3_1_i2v_s_fast_portrait_ultra",
-        },
-        "start_end_frame_2_video": {
-            "VIDEO_ASPECT_RATIO_LANDSCAPE": "veo_3_1_i2v_s_fast_ultra_fl",
-            "VIDEO_ASPECT_RATIO_PORTRAIT": "veo_3_1_i2v_s_fast_portrait_ultra_fl",
-        },
-        "reference_frame_2_video": {
-            "VIDEO_ASPECT_RATIO_LANDSCAPE": "veo_3_0_r2v_fast_ultra",
-            "VIDEO_ASPECT_RATIO_PORTRAIT": "veo_3_0_r2v_fast_portrait_ultra",
-        },
-    },
-    "PAYGATE_TIER_ONE": {
-        "frame_2_video": {
-            "VIDEO_ASPECT_RATIO_LANDSCAPE": "veo_3_1_i2v_s_fast",
-            "VIDEO_ASPECT_RATIO_PORTRAIT": "veo_3_1_i2v_s_fast_portrait",
-        },
-        "start_end_frame_2_video": {
-            "VIDEO_ASPECT_RATIO_LANDSCAPE": "veo_3_1_i2v_s_fast_fl",
-            "VIDEO_ASPECT_RATIO_PORTRAIT": "veo_3_1_i2v_s_fast_portrait_fl",
-        },
-        "reference_frame_2_video": {
-            "VIDEO_ASPECT_RATIO_LANDSCAPE": "veo_3_1_r2v_fast",
-            "VIDEO_ASPECT_RATIO_PORTRAIT": "veo_3_1_r2v_fast_portrait",
-        },
-    },
-}
+# ─── Model Keys (loaded from models.json for easy updates) ──
+_MODELS_FILE = Path(__file__).parent / "models.json"
+with open(_MODELS_FILE) as _f:
+    _MODELS = json.load(_f)
 
-UPSCALE_MODELS = {
-    "VIDEO_RESOLUTION_4K": "veo_3_1_upsampler_4k",
-    "VIDEO_RESOLUTION_1080P": "veo_3_1_upsampler_1080p",
-}
+VIDEO_MODELS = _MODELS["video_models"]
+UPSCALE_MODELS = _MODELS["upscale_models"]
+IMAGE_MODELS = _MODELS["image_models"]
 
 # ─── API Endpoints ───────────────────────────────────────────
 ENDPOINTS = {

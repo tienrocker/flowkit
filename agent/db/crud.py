@@ -7,8 +7,8 @@ from agent.db.schema import get_db
 
 # Column whitelists per table — prevents SQL injection via kwargs keys
 _COLUMNS = {
-    "character": {"name", "description", "reference_image_url", "media_gen_id", "updated_at"},
-    "project": {"name", "description", "thumbnail_url", "language", "status", "user_paygate_tier", "updated_at"},
+    "character": {"name", "description", "image_prompt", "reference_image_url", "media_gen_id", "updated_at"},
+    "project": {"name", "description", "story", "thumbnail_url", "language", "status", "user_paygate_tier", "updated_at"},
     "video": {"title", "description", "display_order", "status", "vertical_url", "horizontal_url",
               "thumbnail_url", "duration", "resolution", "youtube_id", "privacy", "tags", "updated_at"},
     "scene": {"prompt", "image_prompt", "video_prompt", "character_names", "chain_type",
@@ -80,13 +80,13 @@ async def _delete(table: str, pk: str, pk_val: str) -> bool:
 
 # ─── Character ──────────────────────────────────────────────
 
-async def create_character(name: str, description: str = None, reference_image_url: str = None, media_gen_id: str = None) -> dict:
+async def create_character(name: str, description: str = None, image_prompt: str = None, reference_image_url: str = None, media_gen_id: str = None) -> dict:
     db = await get_db()
     try:
         cid, now = _uuid(), _now()
         await db.execute(
-            "INSERT INTO character (id,name,description,reference_image_url,media_gen_id,created_at,updated_at) VALUES (?,?,?,?,?,?,?)",
-            (cid, name, description, reference_image_url, media_gen_id, now, now))
+            "INSERT INTO character (id,name,description,image_prompt,reference_image_url,media_gen_id,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)",
+            (cid, name, description, image_prompt, reference_image_url, media_gen_id, now, now))
         await db.commit()
         return await _get_with_db(db, "character", "id", cid)
     finally:
@@ -107,13 +107,13 @@ async def list_characters() -> list[dict]:
 
 # ─── Project ────────────────────────────────────────────────
 
-async def create_project(name: str, description: str = None, language: str = "en", user_paygate_tier: str = "PAYGATE_TIER_TWO") -> dict:
+async def create_project(name: str, description: str = None, story: str = None, language: str = "en", user_paygate_tier: str = "PAYGATE_TIER_TWO", id: str = None) -> dict:
     db = await get_db()
     try:
-        pid, now = _uuid(), _now()
+        pid, now = id or _uuid(), _now()
         await db.execute(
-            "INSERT INTO project (id,name,description,language,user_paygate_tier,created_at,updated_at) VALUES (?,?,?,?,?,?,?)",
-            (pid, name, description, language, user_paygate_tier, now, now))
+            "INSERT INTO project (id,name,description,story,language,user_paygate_tier,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)",
+            (pid, name, description, story, language, user_paygate_tier, now, now))
         await db.commit()
         return await _get_with_db(db, "project", "id", pid)
     finally:

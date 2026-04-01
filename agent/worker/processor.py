@@ -63,6 +63,12 @@ async def _process_one(client, req: dict):
     req_type = req["type"]
     orientation = req.get("orientation", "VERTICAL")
 
+    # Skip if scene asset is already COMPLETED (prevents wasting captcha-requiring API calls)
+    if await _is_already_completed(req, orientation):
+        logger.info("Request %s skipped — scene asset already COMPLETED", rid[:8])
+        await crud.update_request(rid, status="COMPLETED", error_message="skipped: already completed")
+        return
+
     logger.info("Processing request %s type=%s", rid[:8], req_type)
     await crud.update_request(rid, status="PROCESSING")
 
@@ -129,6 +135,33 @@ async def _mark_scene_failed(req: dict):
         updates[f"{prefix}_upscale_status"] = "FAILED"
     if updates:
         await crud.update_scene(scene_id, **updates)
+
+
+async def _is_already_completed(req: dict, orientation: str) -> bool:
+    """Check if the scene asset this request targets is already COMPLETED.
+
+    Prevents wasting captcha-requiring API calls (generate image/video/upscale)
+    on assets that were already successfully generated.
+    """
+    scene_id = req.get("scene_id")
+    req_type = req.get("type", "")
+    if not scene_id or req_type == "GENERATE_CHARACTER_IMAGE":
+        return False
+
+    scene = await crud.get_scene(scene_id)
+    if not scene:
+        return False
+
+    prefix = "vertical" if orientation == "VERTICAL" else "horizontal"
+
+    if req_type == "GENERATE_IMAGES":
+        return scene.get(f"{prefix}_image_status") == "COMPLETED"
+    elif req_type in ("GENERATE_VIDEO", "GENERATE_VIDEO_REFS"):
+        return scene.get(f"{prefix}_video_status") == "COMPLETED"
+    elif req_type == "UPSCALE_VIDEO":
+        return scene.get(f"{prefix}_upscale_status") == "COMPLETED"
+
+    return False
 
 
 # ─── Error Detection ────────────────────────────────────────

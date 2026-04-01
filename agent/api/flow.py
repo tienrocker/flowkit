@@ -12,6 +12,7 @@ class GenerateImageRequest(BaseModel):
     project_id: str
     aspect_ratio: str = "IMAGE_ASPECT_RATIO_PORTRAIT"
     user_paygate_tier: str = "PAYGATE_TIER_TWO"
+    character_media_gen_ids: Optional[list[str]] = None
 
 
 class GenerateVideoRequest(BaseModel):

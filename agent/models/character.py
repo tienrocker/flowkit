@@ -5,6 +5,7 @@ from typing import Optional
 class CharacterCreate(BaseModel):
     name: str
     description: Optional[str] = None
+    image_prompt: Optional[str] = None
     reference_image_url: Optional[str] = None
     media_gen_id: Optional[str] = None
 
@@ -12,6 +13,7 @@ class CharacterCreate(BaseModel):
 class CharacterUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
+    image_prompt: Optional[str] = None
     reference_image_url: Optional[str] = None
     media_gen_id: Optional[str] = None
 
@@ -20,6 +22,7 @@ class Character(BaseModel):
     id: str
     name: str
     description: Optional[str] = None
+    image_prompt: Optional[str] = None
     reference_image_url: Optional[str] = None
     media_gen_id: Optional[str] = None
     created_at: Optional[str] = None
