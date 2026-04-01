@@ -3,7 +3,7 @@
   "name": "Google Flow Agent",
   "version": "0.2.0",
   "description": "Local agent bridge for Google Flow API — captures tokens, solves reCAPTCHA, proxies API calls",
-  "permissions": ["storage", "alarms", "tabs", "webRequest", "scripting"],
+  "permissions": ["storage", "alarms", "tabs", "webRequest", "scripting", "declarativeNetRequest"],
   "host_permissions": [
     "https://labs.google/*",
     "https://aisandbox-pa.googleapis.com/*"
@@ -27,6 +27,15 @@
       "matches": ["https://labs.google/*"]
     }
   ],
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "referer_rules",
+        "enabled": true,
+        "path": "rules.json"
+      }
+    ]
+  },
   "action": {
     "default_popup": "popup.html",
     "default_title": "Google Flow Agent"
