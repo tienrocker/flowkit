@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { width: 300px; padding: 16px; font-family: system-ui; background: #1a1a2e; color: #e0e0e0; }
+    h2 { margin: 0 0 12px; color: #00d4ff; font-size: 14px; }
+    .status { padding: 8px 12px; border-radius: 8px; margin-bottom: 8px; font-size: 12px; }
+    .connected { background: #0a3d0a; border: 1px solid #3fb950; }
+    .disconnected { background: #3d0a0a; border: 1px solid #f85149; }
+    .stat { display: flex; justify-content: space-between; padding: 4px 0; font-size: 11px; }
+    .label { color: #8b949e; }
+    .value { color: #e0e0e0; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <h2>🔗 Google Flow Agent</h2>
+  <div id="status" class="status disconnected">Checking...</div>
+  <div id="stats"></div>
+  <script src="popup.js"></script>
+</body>
+</html>

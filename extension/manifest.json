@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "Google Flow Agent",
+  "version": "0.1.0",
+  "description": "Captures Google Flow bearer token and provides API bridge for local agent",
+  "permissions": ["webRequest", "storage", "alarms"],
+  "host_permissions": [
+    "https://aisandbox-pa.googleapis.com/*",
+    "https://labs.google/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": "icon48.png"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://labs.google/*"],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ]
+}
