@@ -73,13 +73,27 @@ Every generation request has:
 ```
 
 #### Image Generation Request (with character refs — edit_image flow)
-Same endpoint, same wrapper. Each request item adds:
+Same endpoint (`batchGenerateImages`), same wrapper. Each request item adds `imageInputs`:
 ```json
 {
   "imageInputs": [
     {"name": "<character_media_gen_id>", "imageInputType": "IMAGE_INPUT_TYPE_BASE_IMAGE"}
   ]
 }
+```
+
+**Character media_gen_id lifecycle:**
+1. Character has a reference image URL (`imageUri` / `reference_image_url`)
+2. Upload via `POST /v1:uploadUserImage` → returns `{mediaGenerationId: {mediaGenerationId: "actual_id"}}`
+3. Store `actual_id` as character's `media_gen_id`
+4. Before using in image gen, validate: `GET /v1/media/{media_gen_id}` → 200 = valid
+5. If expired/invalid → re-upload reference image → update `media_gen_id`
+6. Pass valid IDs as `imageInputs` in `batchGenerateImages`
+
+**This is different from scene image `mediaGenerationId`!**
+- Character `media_gen_id` = from `uploadUserImage` (user-uploaded reference)
+- Scene image `mediaGenerationId` = from `batchGenerateImages` response (AI-generated)
+- Video `startImage.mediaId` = scene image's `mediaGenerationId`
 ```
 
 #### Image Generation Response

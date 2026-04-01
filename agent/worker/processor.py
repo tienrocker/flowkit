@@ -258,6 +258,11 @@ async def _handle_generate_image(client, req: dict, orientation: str) -> dict:
     pid = req.get("project_id", "0")
 
     # Get character media_gen_ids if scene has characters
+    # Production flow:
+    #   1. Character has reference_image_url + media_gen_id (from uploadUserImage)
+    #   2. Validate media_gen_id is still valid (GET /v1/media/{id})
+    #   3. If invalid, re-upload reference_image_url → new media_gen_id
+    #   4. Pass as imageInputs [{name: media_gen_id, imageInputType: IMAGE_INPUT_TYPE_BASE_IMAGE}]
     char_media_ids = None
     char_names_raw = scene.get("character_names")
     if char_names_raw and req.get("project_id"):
@@ -268,12 +273,23 @@ async def _handle_generate_image(client, req: dict, orientation: str) -> dict:
                 char_names_raw = []
         if char_names_raw:
             project_chars = await crud.get_project_characters(req["project_id"])
-            char_media_ids = [
-                c["media_gen_id"] for c in project_chars
-                if c["name"] in char_names_raw and c.get("media_gen_id")
-            ]
-            if not char_media_ids:
-                char_media_ids = None  # No valid refs, generate without
+            valid_ids = []
+            for c in project_chars:
+                if c["name"] not in char_names_raw:
+                    continue
+                mid = c.get("media_gen_id")
+                if mid:
+                    # Validate the media_gen_id is still alive
+                    is_valid = await client.validate_media_id(mid)
+                    if is_valid:
+                        valid_ids.append(mid)
+                        continue
+                    logger.warning("Character %s media_gen_id invalid, needs re-upload", c["name"])
+                # No valid media_gen_id — would need to upload character image
+                # (requires reference_image_url to be a downloadable URL + base64 upload)
+                # For now, skip this character
+                logger.warning("Character %s has no valid media_gen_id, skipping", c["name"])
+            char_media_ids = valid_ids if valid_ids else None
 
     return await client.generate_images(
         prompt=prompt, project_id=pid, aspect_ratio=aspect,

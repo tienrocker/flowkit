@@ -265,6 +265,22 @@ class FlowClient:
             "headers": random_headers(),
         }, timeout=15)
 
+    async def validate_media_id(self, media_id: str) -> bool:
+        """Check if a mediaGenerationId is still valid.
+
+        Production calls: GET /v1/media/{mediaId}?key=...&clientContext.tool=PINHOLE
+        Returns True on 200, False otherwise.
+        """
+        url = f"{GOOGLE_FLOW_API}/v1/media/{media_id}?key={GOOGLE_API_KEY}&clientContext.tool=PINHOLE"
+        result = await self._send("api_request", {
+            "url": url,
+            "method": "GET",
+            "headers": random_headers(),
+        }, timeout=15)
+
+        status = result.get("status", 500)
+        return isinstance(status, int) and status == 200
+
     async def upload_image(self, image_base64: str, mime_type: str = "image/jpeg",
                             aspect_ratio: str = "IMAGE_ASPECT_RATIO_PORTRAIT") -> dict:
         """Upload an image for use as start/end frame.
