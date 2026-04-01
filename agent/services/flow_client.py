@@ -125,20 +125,43 @@ class FlowClient:
 
     async def generate_images(self, prompt: str, project_id: str,
                                aspect_ratio: str = "IMAGE_ASPECT_RATIO_PORTRAIT",
-                               user_paygate_tier: str = "PAYGATE_TIER_TWO") -> dict:
-        """Generate image(s)."""
+                               user_paygate_tier: str = "PAYGATE_TIER_TWO",
+                               character_media_gen_ids: list[str] = None) -> dict:
+        """Generate image(s).
+
+        If character_media_gen_ids is provided, uses edit_image flow (batchGenerateImages
+        with imageInputs) — same endpoint, but includes character references.
+        Without characters, uses plain generate_images.
+
+        Response structure:
+            data.media[].image.generatedImage = {
+                mediaGenerationId: str,   # ← the key ID for video gen
+                encodedImage: str | null,  # base64 (legacy)
+                fifeUrl: str | null,       # public URL (new)
+                imageUri: str | null,      # alias for fifeUrl
+            }
+        """
         ts = int(time.time() * 1000)
         ctx = self._client_context(project_id, user_paygate_tier)
 
+        request_item = {
+            "clientContext": {**ctx, "sessionId": f";{ts}"},
+            "seed": ts % 1000000,
+            "prompt": prompt,
+            "imageAspectRatio": aspect_ratio,
+            "imageModelName": "GEM_PIX_2",
+        }
+
+        # Add character references if provided (edit_image flow)
+        if character_media_gen_ids:
+            request_item["imageInputs"] = [
+                {"name": mid, "imageInputType": "IMAGE_INPUT_TYPE_BASE_IMAGE"}
+                for mid in character_media_gen_ids
+            ]
+
         body = {
             "clientContext": ctx,
-            "requests": [{
-                "clientContext": {**ctx, "sessionId": f";{ts}"},
-                "seed": ts % 1000000,
-                "prompt": prompt,
-                "imageAspectRatio": aspect_ratio,
-                "imageModelName": "GEM_PIX_2",
-            }],
+            "requests": [request_item],
         }
 
         url = self._build_url("generate_images", project_id=project_id)
@@ -244,7 +267,12 @@ class FlowClient:
 
     async def upload_image(self, image_base64: str, mime_type: str = "image/jpeg",
                             aspect_ratio: str = "IMAGE_ASPECT_RATIO_PORTRAIT") -> dict:
-        """Upload an image for use as start/end frame."""
+        """Upload an image for use as start/end frame.
+
+        Response: {mediaGenerationId: {mediaGenerationId: "actual_id"}}
+        Note: nested mediaGenerationId — production uses:
+            upload_response.get('mediaGenerationId', {}).get('mediaGenerationId')
+        """
         body = {
             "imageInput": {
                 "rawImageBytes": image_base64,
@@ -259,12 +287,26 @@ class FlowClient:
         }
 
         url = self._build_url("upload_image")
-        return await self._send("api_request", {
+        result = await self._send("api_request", {
             "url": url,
             "method": "POST",
             "headers": random_headers(),
             "body": body,
         }, timeout=60)
+
+        # Flatten nested mediaGenerationId for convenience
+        if not _is_ws_error(result):
+            data = result.get("data", {})
+            if isinstance(data, dict):
+                nested = data.get("mediaGenerationId", {})
+                if isinstance(nested, dict):
+                    result["_mediaGenerationId"] = nested.get("mediaGenerationId", "")
+
+        return result
+
+
+def _is_ws_error(result: dict) -> bool:
+    return bool(result.get("error")) or (isinstance(result.get("status"), int) and result["status"] >= 400)
 
 
 # Singleton

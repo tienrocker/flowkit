@@ -61,7 +61,7 @@ Every generation request has:
 }
 ```
 
-#### Image Generation Request
+#### Image Generation Request (without character refs)
 ```json
 {
   "seed": 123456,
@@ -69,6 +69,43 @@ Every generation request has:
   "imageAspectRatio": "IMAGE_ASPECT_RATIO_PORTRAIT",
   "imageModelName": "GEM_PIX_2",
   "clientContext": { "projectId": "...", "tool": "PINHOLE", "recaptchaContext": {...}, "sessionId": "..." }
+}
+```
+
+#### Image Generation Request (with character refs — edit_image flow)
+Same endpoint, same wrapper. Each request item adds:
+```json
+{
+  "imageInputs": [
+    {"name": "<character_media_gen_id>", "imageInputType": "IMAGE_INPUT_TYPE_BASE_IMAGE"}
+  ]
+}
+```
+
+#### Image Generation Response
+```json
+{
+  "media": [
+    {
+      "image": {
+        "generatedImage": {
+          "mediaGenerationId": "CkIK...",  // ← KEY: used as startImage.mediaId for video gen
+          "encodedImage": "base64...",       // legacy (may be null)
+          "fifeUrl": "https://...",          // public URL (new flow)
+          "imageUri": "https://..."          // alias
+        }
+      }
+    }
+  ]
+}
+```
+
+#### Upload Image Response
+```json
+{
+  "mediaGenerationId": {
+    "mediaGenerationId": "actual_media_id"  // ← nested!
+  }
 }
 ```
 

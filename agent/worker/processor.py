@@ -238,6 +238,15 @@ async def _poll_operations(client, operations: list[dict], timeout: int = VIDEO_
 # ─── W5: Image Generation (sync) ────────────────────────────
 
 async def _handle_generate_image(client, req: dict, orientation: str) -> dict:
+    """W5: Image generation — synchronous, returns result immediately.
+
+    Response path: data.media[].image.generatedImage = {
+        mediaGenerationId, encodedImage, fifeUrl, imageUri
+    }
+
+    If scene has character_names, looks up their media_gen_ids from project
+    and passes them as imageInputs (edit_image flow).
+    """
     scene = await crud.get_scene(req["scene_id"]) if req.get("scene_id") else None
     if not scene:
         return {"error": "Scene not found"}
@@ -248,8 +257,28 @@ async def _handle_generate_image(client, req: dict, orientation: str) -> dict:
     tier = project.get("user_paygate_tier", "PAYGATE_TIER_TWO") if project else "PAYGATE_TIER_TWO"
     pid = req.get("project_id", "0")
 
-    # Image gen is synchronous — result returned immediately
-    return await client.generate_images(prompt=prompt, project_id=pid, aspect_ratio=aspect, user_paygate_tier=tier)
+    # Get character media_gen_ids if scene has characters
+    char_media_ids = None
+    char_names_raw = scene.get("character_names")
+    if char_names_raw and req.get("project_id"):
+        if isinstance(char_names_raw, str):
+            try:
+                char_names_raw = json.loads(char_names_raw)
+            except json.JSONDecodeError:
+                char_names_raw = []
+        if char_names_raw:
+            project_chars = await crud.get_project_characters(req["project_id"])
+            char_media_ids = [
+                c["media_gen_id"] for c in project_chars
+                if c["name"] in char_names_raw and c.get("media_gen_id")
+            ]
+            if not char_media_ids:
+                char_media_ids = None  # No valid refs, generate without
+
+    return await client.generate_images(
+        prompt=prompt, project_id=pid, aspect_ratio=aspect,
+        user_paygate_tier=tier, character_media_gen_ids=char_media_ids,
+    )
 
 
 # ─── W6/W7: Video Generation (async — needs polling) ────────
