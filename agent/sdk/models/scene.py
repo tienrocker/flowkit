@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 
 from agent.sdk.models.base import DomainModel
-from agent.sdk.models.media import MediaAsset, OrientationSlot
+from agent.sdk.models.media import MediaAsset, OrientationSlot, GenerationResult
 
 
 def _slot_from_row(row: dict[str, Any], prefix: str) -> OrientationSlot:
@@ -92,6 +92,35 @@ class Scene(DomainModel):
             _repo=repo,
         )
 
+    def to_operation_dict(self, project_id: str) -> dict:
+        """Convert to the flat dict that OperationService direct methods expect."""
+        import json as _json
+        d = {
+            "id": self.id,
+            "video_id": self.video_id,
+            "display_order": self.display_order,
+            "prompt": self.prompt,
+            "image_prompt": self.image_prompt,
+            "video_prompt": self.video_prompt,
+            "character_names": _json.dumps(self.character_names) if isinstance(self.character_names, list) else self.character_names,
+            "parent_scene_id": self.parent_scene_id,
+            "chain_type": self.chain_type,
+            "_project_id": project_id,
+        }
+        # Flatten OrientationSlot fields
+        for prefix, slot in [("vertical", self.vertical), ("horizontal", self.horizontal)]:
+            d[f"{prefix}_image_media_id"] = slot.image.media_id
+            d[f"{prefix}_image_url"] = slot.image.url
+            d[f"{prefix}_image_status"] = slot.image.status
+            d[f"{prefix}_video_media_id"] = slot.video.media_id
+            d[f"{prefix}_video_url"] = slot.video.url
+            d[f"{prefix}_video_status"] = slot.video.status
+            d[f"{prefix}_upscale_media_id"] = slot.upscale.media_id
+            d[f"{prefix}_upscale_url"] = slot.upscale.url
+            d[f"{prefix}_upscale_status"] = slot.upscale.status
+            d[f"{prefix}_end_scene_media_id"] = slot.end_scene_media_id
+        return d
+
     # ------------------------------------------------------------------
     # Generation helpers
     # ------------------------------------------------------------------
@@ -172,3 +201,122 @@ class Scene(DomainModel):
             video_id=video_id or self.video_id,
             orientation=orientation,
         )
+
+    # ------------------------------------------------------------------
+    # Direct execution (calls FlowClient directly, returns result)
+    # ------------------------------------------------------------------
+
+    async def execute_generate_image(
+        self,
+        *,
+        orientation: str = "VERTICAL",
+        project_id: str,
+    ) -> GenerationResult:
+        """Generate scene image directly (blocking). Returns GenerationResult."""
+        from agent.sdk.services.operations import get_operations
+        from agent.sdk.services.result_handler import parse_result, apply_scene_result
+
+        ops = get_operations()
+        raw = await ops.generate_scene_image(self.to_operation_dict(project_id), orientation)
+        result = parse_result(raw, "GENERATE_IMAGE")
+        if result.success:
+            await apply_scene_result(self.id, "GENERATE_IMAGE", orientation, result)
+            slot = self.vertical if orientation == "VERTICAL" else self.horizontal
+            slot.image.media_id = result.media_id
+            slot.image.url = result.url
+            slot.image.status = "COMPLETED"
+            slot.video = MediaAsset()
+            slot.upscale = MediaAsset()
+        return result
+
+    async def execute_edit_image(
+        self,
+        edit_prompt: str,
+        *,
+        orientation: str = "VERTICAL",
+        project_id: str,
+        source_media_id: Optional[str] = None,
+    ) -> GenerationResult:
+        """Edit scene image directly (blocking). Returns GenerationResult."""
+        from agent.sdk.services.operations import get_operations
+        from agent.sdk.services.result_handler import parse_result, apply_scene_result
+
+        ops = get_operations()
+        scene_dict = self.to_operation_dict(project_id)
+        slot = self.vertical if orientation == "VERTICAL" else self.horizontal
+        src = source_media_id or slot.image.media_id
+        raw = await ops.edit_scene_image(scene_dict, orientation, source_media_id=src)
+        result = parse_result(raw, "EDIT_IMAGE")
+        if result.success:
+            await apply_scene_result(self.id, "EDIT_IMAGE", orientation, result)
+            slot.image.media_id = result.media_id
+            slot.image.url = result.url
+            slot.image.status = "COMPLETED"
+            slot.video = MediaAsset()
+            slot.upscale = MediaAsset()
+        return result
+
+    async def execute_generate_video(
+        self,
+        *,
+        orientation: str = "VERTICAL",
+        project_id: str,
+    ) -> GenerationResult:
+        """Generate video from scene image directly (blocking, polls). Returns GenerationResult."""
+        from agent.sdk.services.operations import get_operations
+        from agent.sdk.services.result_handler import parse_result, apply_scene_result
+
+        ops = get_operations()
+        raw = await ops.generate_scene_video(self.to_operation_dict(project_id), orientation)
+        result = parse_result(raw, "GENERATE_VIDEO")
+        if result.success:
+            await apply_scene_result(self.id, "GENERATE_VIDEO", orientation, result)
+            slot = self.vertical if orientation == "VERTICAL" else self.horizontal
+            slot.video.media_id = result.media_id
+            slot.video.url = result.url
+            slot.video.status = "COMPLETED"
+            slot.upscale = MediaAsset()
+        return result
+
+    async def execute_generate_video_refs(
+        self,
+        *,
+        orientation: str = "VERTICAL",
+        project_id: str,
+    ) -> GenerationResult:
+        """Generate video from references directly (blocking, polls). Returns GenerationResult."""
+        from agent.sdk.services.operations import get_operations
+        from agent.sdk.services.result_handler import parse_result, apply_scene_result
+
+        ops = get_operations()
+        raw = await ops.generate_scene_video_refs(self.to_operation_dict(project_id), orientation)
+        result = parse_result(raw, "GENERATE_VIDEO_REFS")
+        if result.success:
+            await apply_scene_result(self.id, "GENERATE_VIDEO_REFS", orientation, result)
+            slot = self.vertical if orientation == "VERTICAL" else self.horizontal
+            slot.video.media_id = result.media_id
+            slot.video.url = result.url
+            slot.video.status = "COMPLETED"
+            slot.upscale = MediaAsset()
+        return result
+
+    async def execute_upscale_video(
+        self,
+        *,
+        orientation: str = "VERTICAL",
+        project_id: str,
+    ) -> GenerationResult:
+        """Upscale scene video directly (blocking, polls). Returns GenerationResult."""
+        from agent.sdk.services.operations import get_operations
+        from agent.sdk.services.result_handler import parse_result, apply_scene_result
+
+        ops = get_operations()
+        raw = await ops.upscale_scene_video(self.to_operation_dict(project_id), orientation)
+        result = parse_result(raw, "UPSCALE_VIDEO")
+        if result.success:
+            await apply_scene_result(self.id, "UPSCALE_VIDEO", orientation, result)
+            slot = self.vertical if orientation == "VERTICAL" else self.horizontal
+            slot.upscale.media_id = result.media_id
+            slot.upscale.url = result.url
+            slot.upscale.status = "COMPLETED"
+        return result

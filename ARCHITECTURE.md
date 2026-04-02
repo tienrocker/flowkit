@@ -157,7 +157,7 @@ CREATE TABLE request (
     video_id        TEXT REFERENCES video(id),
     scene_id        TEXT REFERENCES scene(id),
     character_id    TEXT REFERENCES character(id),
-    type            TEXT NOT NULL CHECK(type IN ('GENERATE_IMAGE','GENERATE_VIDEO','GENERATE_VIDEO_REFS','UPSCALE_VIDEO','GENERATE_CHARACTER_IMAGE')),
+    type            TEXT NOT NULL CHECK(type IN ('GENERATE_IMAGE','EDIT_IMAGE','GENERATE_VIDEO','GENERATE_VIDEO_REFS','UPSCALE_VIDEO','GENERATE_CHARACTER_IMAGE')),
     orientation     TEXT CHECK(orientation IN ('VERTICAL','HORIZONTAL')),
     status          TEXT DEFAULT 'PENDING' CHECK(status IN ('PENDING','PROCESSING','COMPLETED','FAILED')),
     request_id      TEXT,
@@ -171,6 +171,70 @@ CREATE TABLE request (
 CREATE INDEX idx_request_scene ON request(scene_id);
 CREATE INDEX idx_request_status ON request(status);
 ```
+
+---
+
+## Video AI SDK
+
+Domain-model layer that wraps FlowClient operations with type-safe classes.
+
+### Two Execution Modes
+
+```python
+# 1. Queue-based (async — background processor picks up)
+request_id = await scene.generate_image(project_id="...")
+# Returns immediately. Poll request status to know when done.
+
+# 2. Direct execution (blocking — calls FlowClient immediately)
+result = await scene.execute_generate_image(project_id="...")
+if result.success:
+    print(result.media_id, result.url)
+else:
+    print(result.error)
+```
+
+### Domain Models (`agent/sdk/models/`)
+
+| Model | Key Methods |
+|-------|------------|
+| `Project` | `get()`, `create()`, `add_character()`, `get_characters()`, `add_video()`, `get_videos()` |
+| `Video` | `add_scene()`, `get_scenes()`, `remove_scene()`, `move_scene()` |
+| `Scene` | `generate_image()`, `edit_image()`, `generate_video()`, `upscale_video()` (queue) |
+| | `execute_generate_image()`, `execute_edit_image()`, `execute_generate_video()`, `execute_generate_video_refs()`, `execute_upscale_video()` (direct) |
+| `Character` | `generate_image()`, `edit_image()` (queue), `execute_generate_image()`, `execute_edit_image()` (direct) |
+
+### Value Objects (`agent/sdk/models/media.py`)
+
+- `MediaAsset` — status + media_id + url for one asset
+- `OrientationSlot` — image/video/upscale MediaAssets for one orientation
+- `GenerationResult` — success/error + media_id + url from direct execution
+
+### Services (`agent/sdk/services/`)
+
+- `OperationService` — direct FlowClient execution (generate, edit, video, upscale, reference images) + queue wrappers
+- `result_handler` — shared result parsing + DB update logic (used by both direct SDK path and background processor)
+
+### Architecture
+
+```
+Scene.execute_generate_image()
+  → OperationService.generate_scene_image()  (calls FlowClient)
+  → result_handler.parse_result()            (extract media_id, url)
+  → result_handler.apply_scene_result()      (update DB + cascade)
+  → update local OrientationSlot             (in-memory sync)
+
+Scene.generate_image()
+  → OperationService.queue_scene_image()     (create DB request)
+  → processor picks up PENDING               (background)
+  → OperationService.generate_scene_image()  (same direct method)
+  → result_handler.apply_scene_result()      (same DB update)
+```
+
+### Cascade Rules
+
+- Regenerate image → clears video + upscale (downstream)
+- Regenerate video → clears upscale
+- Upscale → no cascade
 
 ---
 
@@ -190,28 +254,42 @@ google-flow-agent/
 │   │   ├── __init__.py
 │   │   ├── schema.py
 │   │   └── crud.py
-│   ├── models/
-│   │   ├── __init__.py
+│   ├── models/              ← Pydantic models (API layer)
 │   │   ├── project.py
 │   │   ├── video.py
 │   │   ├── scene.py
 │   │   ├── character.py
-│   │   └── request.py
+│   │   ├── request.py
+│   │   └── enums.py
+│   ├── sdk/                 ← Video AI SDK
+│   │   ├── models/
+│   │   │   ├── base.py          (DomainModel with save/reload)
+│   │   │   ├── media.py         (MediaAsset, OrientationSlot, GenerationResult)
+│   │   │   ├── scene.py         (Scene — queue + direct execution)
+│   │   │   ├── character.py     (Character — queue + direct execution)
+│   │   │   ├── project.py       (Project — CRUD + relationships)
+│   │   │   └── video.py         (Video — scene management)
+│   │   ├── services/
+│   │   │   ├── operations.py    (OperationService — FlowClient bridge)
+│   │   │   └── result_handler.py (parse_result, apply_scene_result)
+│   │   └── persistence/
+│   │       ├── base.py          (Repository interface)
+│   │       └── sqlite_repository.py
 │   ├── api/
-│   │   ├── __init__.py
 │   │   ├── projects.py
 │   │   ├── videos.py
 │   │   ├── scenes.py
 │   │   ├── characters.py
-│   │   └── requests.py
+│   │   ├── requests.py
+│   │   └── flow.py
 │   ├── services/
-│   │   ├── __init__.py
 │   │   ├── flow_client.py
 │   │   ├── scene_chain.py
 │   │   └── post_process.py
 │   └── worker/
-│       ├── __init__.py
-│       └── processor.py
+│       ├── processor.py     (thin dispatcher, uses OperationService)
+│       └── _parsing.py      (shared extraction helpers)
+├── skills/                  ← AI agent skills
 └── requirements.txt
 ```
 

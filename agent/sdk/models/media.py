@@ -41,3 +41,13 @@ class OrientationSlot:
     video: MediaAsset = field(default_factory=MediaAsset)
     upscale: MediaAsset = field(default_factory=MediaAsset)
     end_scene_media_id: Optional[str] = None
+
+
+@dataclass
+class GenerationResult:
+    """Result from a direct SDK execution operation."""
+    success: bool
+    media_id: Optional[str] = None
+    url: Optional[str] = None
+    error: Optional[str] = None
+    raw: Optional[dict] = field(default=None, repr=False)

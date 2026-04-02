@@ -11,7 +11,8 @@ import time
 from agent.db import crud
 from agent.services.flow_client import get_flow_client
 from agent.config import POLL_INTERVAL, MAX_RETRIES, API_COOLDOWN
-from agent.worker._parsing import _is_error, _extract_media_id, _extract_output_url
+from agent.worker._parsing import _is_error
+from agent.sdk.services.result_handler import parse_result, apply_scene_result
 
 logger = logging.getLogger(__name__)
 
@@ -68,11 +69,10 @@ async def _process_one(req: dict):
         if _is_error(result):
             await _handle_failure(rid, req, result)
         else:
-            media_id = _extract_media_id(result, req_type)
-            output_url = _extract_output_url(result, req_type)
-            await crud.update_request(rid, status="COMPLETED", media_id=media_id, output_url=output_url)
-            await _update_scene_from_result(req, orientation, media_id, output_url)
-            logger.info("Request %s COMPLETED: media=%s", rid[:8], media_id[:20] if media_id else "?")
+            gen_result = parse_result(result, req_type)
+            await crud.update_request(rid, status="COMPLETED", media_id=gen_result.media_id, output_url=gen_result.url)
+            await apply_scene_result(req.get("scene_id"), req_type, orientation, gen_result)
+            logger.info("Request %s COMPLETED: media=%s", rid[:8], gen_result.media_id[:20] if gen_result.media_id else "?")
     except Exception as e:
         logger.exception("Request %s exception: %s", rid[:8], e)
         await _handle_failure(rid, req, {"error": str(e)})
@@ -176,33 +176,3 @@ async def _is_already_completed(req: dict, orientation: str) -> bool:
     return False
 
 
-async def _update_scene_from_result(req: dict, orientation: str, media_id: str, output_url: str):
-    """Update scene fields + cascade-clear downstream on regen."""
-    scene_id = req.get("scene_id")
-    if not scene_id:
-        return
-    p = "vertical" if orientation == "VERTICAL" else "horizontal"
-    req_type = req["type"]
-    updates = {}
-
-    if req_type in ("GENERATE_IMAGE", "EDIT_IMAGE"):
-        updates.update({
-            f"{p}_image_media_id": media_id, f"{p}_image_url": output_url,
-            f"{p}_image_status": "COMPLETED",
-            f"{p}_video_media_id": None, f"{p}_video_url": None, f"{p}_video_status": "PENDING",
-            f"{p}_upscale_media_id": None, f"{p}_upscale_url": None, f"{p}_upscale_status": "PENDING",
-        })
-    elif req_type in ("GENERATE_VIDEO", "GENERATE_VIDEO_REFS"):
-        updates.update({
-            f"{p}_video_media_id": media_id, f"{p}_video_url": output_url,
-            f"{p}_video_status": "COMPLETED",
-            f"{p}_upscale_media_id": None, f"{p}_upscale_url": None, f"{p}_upscale_status": "PENDING",
-        })
-    elif req_type == "UPSCALE_VIDEO":
-        updates.update({
-            f"{p}_upscale_media_id": media_id, f"{p}_upscale_url": output_url,
-            f"{p}_upscale_status": "COMPLETED",
-        })
-
-    if updates:
-        await crud.update_scene(scene_id, **updates)
