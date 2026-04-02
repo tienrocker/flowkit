@@ -772,10 +772,10 @@ async def _handle_generate_character_image(client, req: dict) -> dict:
     pid = req.get("project_id", "0")
     entity_type = char.get("entity_type", "character")
 
-    # ── Fast path: image already generated, just need media_id ──
+    # ── Fast path: image already generated, just need upload for UUID ──
     # If reference_image_url exists but media_id is missing, the image was
     # already generated on a previous attempt — skip generation (saves credits)
-    # and just retry upload for UUID.
+    # and just retry the upload + UUID extraction.
     existing_url = char.get("reference_image_url")
     if existing_url and not char.get("media_id"):
         logger.info("%s '%s' already has image, retrying upload only (saving credits)", entity_type, char["name"])
@@ -783,10 +783,19 @@ async def _handle_generate_character_image(client, req: dict) -> dict:
             "name": char["name"],
             "reference_image_url": existing_url,
         }, pid)
+
         if upload_mid:
             await crud.update_character(char["id"], media_id=upload_mid)
             logger.info("%s '%s' upload retry succeeded: media_id=%s", entity_type, char["name"], upload_mid[:30])
             return {"data": {"media": [{"name": upload_mid}]}}
+
+        # Upload still failed — try extracting UUID from the GCS URL as last resort
+        uuid_from_url = _extract_uuid_from_url(existing_url)
+        if uuid_from_url:
+            await crud.update_character(char["id"], media_id=uuid_from_url)
+            logger.info("%s '%s' extracted UUID from URL: media_id=%s", entity_type, char["name"], uuid_from_url)
+            return {"data": {"media": [{"name": uuid_from_url}]}}
+
         return {"error": f"Upload retry failed for {char['name']} — image exists but cannot get UUID media_id"}
 
     # ── Normal path: generate image from scratch ──
@@ -828,8 +837,13 @@ async def _handle_generate_character_image(client, req: dict) -> dict:
                             entity_type, char["name"], aspect.split("_")[-1].lower(),
                             upload_mid[:30] if upload_mid else "?")
             else:
-                # Upload failed — store ref URL for retry on next attempt
+                # Upload failed — store ref URL, then try UUID extraction from GCS URL
                 await crud.update_character(char["id"], reference_image_url=output_url)
+                uuid_from_url = _extract_uuid_from_url(output_url)
+                if uuid_from_url:
+                    await crud.update_character(char["id"], media_id=uuid_from_url)
+                    logger.info("%s '%s' extracted UUID from URL fallback: media_id=%s", entity_type, char["name"], uuid_from_url)
+                    return {"data": {"media": [{"name": uuid_from_url}]}}
                 logger.warning("%s '%s' upload failed, no media_id stored — will retry upload on next attempt", entity_type, char["name"])
                 return {"error": f"Upload failed for {char['name']} — image generated but could not get UUID media_id"}
 
