@@ -1,6 +1,6 @@
 Generate reference images for all entities in a project.
 
-Usage: `/gen-refs <project_id>`
+Usage: `/gla:gen-refs <project_id>`
 
 If no project_id provided, ask the user or list projects via `GET /api/projects`.
 
@@ -48,4 +48,4 @@ Print results table:
 
 All entities must have `media_id` in UUID format. If any failed, report and suggest retry.
 
-Print: "All references ready. Run /gen-images <PID> <VID> to generate scene images."
+Print: "All references ready. Run /gla:gen-images <PID> <VID> to generate scene images."

@@ -1,6 +1,6 @@
 Generate videos for all scenes in a video.
 
-Usage: `/gen-videos <project_id> <video_id>`
+Usage: `/gla:gen-videos <project_id> <video_id>`
 
 ## Step 1: Pre-check — all scene images must be ready
 
@@ -8,7 +8,7 @@ Usage: `/gen-videos <project_id> <video_id>`
 curl -s "http://127.0.0.1:8100/api/scenes?video_id=<VID>"
 ```
 
-**ABORT** if any scene is missing `vertical_image_media_id` (UUID) or `vertical_image_status` != `"COMPLETED"`. Tell user to run `/gen-images` first.
+**ABORT** if any scene is missing `vertical_image_media_id` (UUID) or `vertical_image_status` != `"COMPLETED"`. Tell user to run `/gla:gen-images` first.
 
 ## Step 2: Filter scenes needing video
 
@@ -38,4 +38,4 @@ Print results table:
 | Scene | Order | video_status | video_media_id | video_url |
 |-------|-------|-------------|---------------|-----------|
 
-Print: "All videos ready. Run /concat <VID> to download and merge."
+Print: "All videos ready. Run /gla:concat <VID> to download and merge."

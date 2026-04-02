@@ -72,9 +72,9 @@ Scene 5 (Resolution) — CONTINUATION
 Present the plan and ask which enhancements to apply. Then execute:
 
 1. Create any new INSERT scenes (`POST /api/scenes`)
-2. Generate images for new scenes (`/gen-images`)
+2. Generate images for new scenes (`/gla:gen-images`)
 3. Set up chain end_scene_media_ids
-4. Generate all videos with chaining (`/gen-chain-videos`)
+4. Generate all videos with chaining (`/gla:gen-chain-videos`)
 5. For r2v scenes: `POST /api/requests {type: "GENERATE_VIDEO_REFS"}`
 
 ## Step 4: Output
@@ -92,4 +92,4 @@ Print the final scene timeline:
 01:04 Scene 5a   [INSERT←5]    Sunset outro (i2v)
 ```
 
-Run `/concat <VID>` to merge the final video.
+Run `/gla:concat <VID>` to merge the final video.

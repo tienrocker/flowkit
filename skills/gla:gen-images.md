@@ -1,6 +1,6 @@
 Generate scene images for all scenes in a video.
 
-Usage: `/gen-images <project_id> <video_id>`
+Usage: `/gla:gen-images <project_id> <video_id>`
 
 If not provided, ask or list projects/videos.
 
@@ -10,7 +10,7 @@ If not provided, ask or list projects/videos.
 curl -s http://127.0.0.1:8100/api/projects/<PID>/characters
 ```
 
-**ABORT** if any entity is missing `media_id`. Tell user to run `/gen-refs <PID>` first.
+**ABORT** if any entity is missing `media_id`. Tell user to run `/gla:gen-refs <PID>` first.
 
 ## Step 2: Get scenes
 
@@ -53,4 +53,4 @@ Print results table:
 | Scene | Order | image_status | media_id (UUID) |
 |-------|-------|-------------|----------------|
 
-Print: "All scene images ready. Run /gen-videos <PID> <VID> to generate videos."
+Print: "All scene images ready. Run /gla:gen-videos <PID> <VID> to generate videos."

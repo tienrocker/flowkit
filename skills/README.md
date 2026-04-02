@@ -6,36 +6,36 @@ Workflow skills for AI agents and humans. Each skill is a step-by-step recipe.
 
 | # | Skill | File | Description |
 |---|-------|------|-------------|
-| 1 | new-project | [new-project.md](new-project.md) | Create project + entities + video + scenes |
-| 2 | gen-refs | [gen-refs.md](gen-refs.md) | Generate reference images for all entities |
-| 3 | gen-images | [gen-images.md](gen-images.md) | Generate scene images with character refs |
-| 4 | gen-videos | [gen-videos.md](gen-videos.md) | Generate videos from scene images |
-| 5 | concat | [concat.md](concat.md) | Download + merge all scene videos |
+| 1 | `gla:create-project` | [gla:create-project.md](gla:create-project.md) | Create project + entities + video + scenes |
+| 2 | `gla:gen-refs` | [gla:gen-refs.md](gla:gen-refs.md) | Generate reference images for all entities |
+| 3 | `gla:gen-images` | [gla:gen-images.md](gla:gen-images.md) | Generate scene images with character refs |
+| 4 | `gla:gen-videos` | [gla:gen-videos.md](gla:gen-videos.md) | Generate videos from scene images |
+| 5 | `gla:concat` | [gla:concat.md](gla:concat.md) | Download + merge all scene videos |
 
 ## Advanced Video
 
 | Skill | File | Description |
 |-------|------|-------------|
-| gen-chain-videos | [gen-chain-videos.md](gen-chain-videos.md) | Auto start+end frame chaining for smooth transitions |
-| insert-scene | [insert-scene.md](insert-scene.md) | Multi-angle shots, cutaways, close-ups |
-| creative-mix | [creative-mix.md](creative-mix.md) | Analyze story + suggest all techniques combined |
+| `gla:gen-chain-videos` | [gla:gen-chain-videos.md](gla:gen-chain-videos.md) | Auto start+end frame chaining for smooth transitions |
+| `gla:insert-scene` | [gla:insert-scene.md](gla:insert-scene.md) | Multi-angle shots, cutaways, close-ups |
+| `gla:creative-mix` | [gla:creative-mix.md](gla:creative-mix.md) | Analyze story + suggest all techniques combined |
 
 ## Reference
 
 | Skill | File | Description |
 |-------|------|-------------|
-| camera-guide | [camera-guide.md](camera-guide.md) | Camera angles, movements, lighting, DOF for cinematic video prompts |
+| `gla:camera-guide` | [gla:camera-guide.md](gla:camera-guide.md) | Camera angles, movements, lighting, DOF for cinematic video prompts |
 
 ## Utilities
 
 | Skill | File | Description |
 |-------|------|-------------|
-| status | [status.md](status.md) | Full project dashboard + next action |
-| fix-uuids | [fix-uuids.md](fix-uuids.md) | Repair any CAMS... media_ids to UUID format |
+| `gla:status` | [gla:status.md](gla:status.md) | Full project dashboard + next action |
+| `gla:fix-uuids` | [gla:fix-uuids.md](gla:fix-uuids.md) | Repair any CAMS... media_ids to UUID format |
 
 ## For Claude Code users
 
-These skills are also available as `/slash-commands` via `.claude/commands/`.
+These skills are also available as `/slash-commands` via `.claude/commands/` (e.g. `/gla:create-project`).
 
 ---
 
@@ -43,7 +43,7 @@ These skills are also available as `/slash-commands` via `.claude/commands/`.
 
 This walkthrough shows exactly how an AI agent uses skills to go from idea to final video.
 
-### 1. `/new-project`
+### 1. `/gla:create-project`
 
 **Agent asks:** What's your project? Characters, locations, key objects, scenes, orientation?
 
@@ -123,11 +123,11 @@ curl -X POST http://127.0.0.1:8100/api/scenes -H "Content-Type: application/json
 # → scene_id: "s-3"
 ```
 
-**Agent says:** "Project created with 4 entities and 3 scenes. Run `/gen-refs p-xxx` to generate reference images."
+**Agent says:** "Project created with 4 entities and 3 scenes. Run `/gla:gen-refs p-xxx` to generate reference images."
 
 ---
 
-### 2. `/gen-refs p-xxx`
+### 2. `/gla:gen-refs p-xxx`
 
 **Agent executes** (one at a time, waits for each):
 
@@ -150,12 +150,12 @@ All 4 references ready:
   Chocolate River       location       media_id=c9d0e1f2-...  ✓
   Gummy Bear Mountain   location       media_id=a3b4c5d6-...  ✓
 
-Run /gen-images p-xxx v-xxx to generate scene images.
+Run /gla:gen-images p-xxx v-xxx to generate scene images.
 ```
 
 ---
 
-### 3. `/gen-images p-xxx v-xxx`
+### 3. `/gla:gen-images p-xxx v-xxx`
 
 **Agent pre-checks:** All 4 refs have UUID media_id ✓
 
@@ -176,12 +176,12 @@ All 3 scene images ready:
   Scene 2: image=OK  media_id=b5a6c7d8-...
   Scene 3: image=OK  media_id=e9f0a1b2-...
 
-Run /gen-videos p-xxx v-xxx to generate videos.
+Run /gla:gen-videos p-xxx v-xxx to generate videos.
 ```
 
 ---
 
-### 4. `/gen-videos p-xxx v-xxx`
+### 4. `/gla:gen-videos p-xxx v-xxx`
 
 **Agent pre-checks:** All 3 scenes have UUID image media_id ✓
 
@@ -202,12 +202,12 @@ All 3 videos ready:
   Scene 2: video=OK  url=https://storage.googleapis.com/...
   Scene 3: video=OK  url=https://storage.googleapis.com/...
 
-Run /concat v-xxx to download and merge.
+Run /gla:concat v-xxx to download and merge.
 ```
 
 ---
 
-### 5. `/concat v-xxx`
+### 5. `/gla:concat v-xxx`
 
 ```
 Downloading scene 1... 2.1 MB → output/luna/scene_1.mp4

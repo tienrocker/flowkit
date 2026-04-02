@@ -1,6 +1,6 @@
 Download and concatenate all scene videos into a single video.
 
-Usage: `/concat <video_id> [output_dir]`
+Usage: `/gla:concat <video_id> [output_dir]`
 
 Default output_dir: `output/`
 
@@ -12,7 +12,7 @@ curl -s "http://127.0.0.1:8100/api/scenes?video_id=<VID>"
 
 Sort by `display_order`. For each scene, use `vertical_upscale_url` if available (upscaled), otherwise `vertical_video_url`.
 
-**ABORT** if any scene is missing video URL. Tell user to run `/gen-videos` first.
+**ABORT** if any scene is missing video URL. Tell user to run `/gla:gen-videos` first.
 
 ## Step 2: Get video title for folder name
 

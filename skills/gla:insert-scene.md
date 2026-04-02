@@ -65,7 +65,7 @@ Print updated scene order:
 |---|------|-------|--------|
 
 Mark the new INSERT scene. Tell user:
-- "New scene inserted. Run /gen-images to generate its image, then /gen-chain-videos to regenerate videos with updated chain."
+- "New scene inserted. Run /gla:gen-images to generate its image, then /gla:gen-chain-videos to regenerate videos with updated chain."
 
 ## Multi-angle batch
 

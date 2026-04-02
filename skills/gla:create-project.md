@@ -52,4 +52,4 @@ Print a summary table:
 - Project ID, Video ID
 - All entities with names and types
 - All scenes with prompts (truncated) and chain type
-- Next step: "Run /gen-refs to generate reference images"
+- Next step: "Run /gla:gen-refs to generate reference images"

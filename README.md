@@ -79,18 +79,18 @@ System generates ref image per entity → then composes scenes using those refs
 
 ### Using Skills (recommended)
 
-Skills handle all the API calls, polling, and verification automatically. Use with Claude Code (`/command`) or follow the recipe in `skills/*.md` for any AI agent.
+Skills handle all the API calls, polling, and verification automatically. Use with Claude Code (`/gla:command`) or follow the recipe in `skills/*.md` for any AI agent.
 
 ```
-/new-project                    ← interactive: asks story, creates entities + scenes
-/gen-refs <project_id>          ← generates all reference images, verifies UUIDs
-/gen-images <pid> <vid>         ← generates scene images with all refs applied
-/gen-videos <pid> <vid>         ← generates videos (2-5 min each, polls automatically)
-/concat <vid>                   ← downloads + merges into final video
-/status <pid>                   ← dashboard: what's done, what's next
+/gla:create-project             ← interactive: asks story, creates entities + scenes
+/gla:gen-refs <project_id>      ← generates all reference images, verifies UUIDs
+/gla:gen-images <pid> <vid>     ← generates scene images with all refs applied
+/gla:gen-videos <pid> <vid>     ← generates videos (2-5 min each, polls automatically)
+/gla:concat <vid>               ← downloads + merges into final video
+/gla:status <pid>               ← dashboard: what's done, what's next
 ```
 
-Full pipeline in 5 commands. Each skill pre-checks dependencies (e.g. `/gen-images` verifies all refs exist first).
+Full pipeline in 5 commands. Each skill pre-checks dependencies (e.g. `/gla:gen-images` verifies all refs exist first).
 
 ### Manual API (step by step)
 
@@ -267,32 +267,32 @@ Ready-to-use workflow recipes in `skills/` (also available as `/slash-commands` 
 
 | Skill | Description |
 |-------|-------------|
-| `/new-project` | Create project + entities + video + scenes interactively |
-| `/gen-refs` | Generate reference images for all entities |
-| `/gen-images` | Generate scene images with character refs |
-| `/gen-videos` | Generate videos from scene images |
-| `/concat` | Download + merge all scene videos |
+| `/gla:create-project` | Create project + entities + video + scenes interactively |
+| `/gla:gen-refs` | Generate reference images for all entities |
+| `/gla:gen-images` | Generate scene images with character refs |
+| `/gla:gen-videos` | Generate videos from scene images |
+| `/gla:concat` | Download + merge all scene videos |
 
 ### Advanced Video
 
 | Skill | Description |
 |-------|-------------|
-| `/gen-chain-videos` | Auto start+end frame chaining for smooth transitions (i2v_fl) |
-| `/insert-scene` | Multi-angle shots, cutaways, close-ups within a chain |
-| `/creative-mix` | Analyze story + suggest all techniques (chain, insert, r2v, parallel) |
+| `/gla:gen-chain-videos` | Auto start+end frame chaining for smooth transitions (i2v_fl) |
+| `/gla:insert-scene` | Multi-angle shots, cutaways, close-ups within a chain |
+| `/gla:creative-mix` | Analyze story + suggest all techniques (chain, insert, r2v, parallel) |
 
 ### Reference
 
 | Skill | Description |
 |-------|-------------|
-| `/camera-guide` | Camera angles, movements, lighting, DOF for cinematic video prompts |
+| `/gla:camera-guide` | Camera angles, movements, lighting, DOF for cinematic video prompts |
 
 ### Utilities
 
 | Skill | Description |
 |-------|-------------|
-| `/status` | Full project dashboard + recommended next action |
-| `/fix-uuids` | Repair any CAMS... media_ids to UUID format |
+| `/gla:status` | Full project dashboard + recommended next action |
+| `/gla:fix-uuids` | Repair any CAMS... media_ids to UUID format |
 
 ## Video Generation Techniques
 
@@ -392,8 +392,8 @@ skills/                  # AI agent workflow recipes
 | Extension shows "No token" | Open labs.google/fx/tools/flow |
 | `CAPTCHA_FAILED: NO_FLOW_TAB` | Need a Google Flow tab open |
 | 403 MODEL_ACCESS_DENIED | Tier mismatch — auto-detect should handle it |
-| Scene images inconsistent | Check all refs have `media_id` (UUID). Run `/fix-uuids` |
-| media_id starts with CAMS... | Run `/fix-uuids` to extract UUID from URL |
+| Scene images inconsistent | Check all refs have `media_id` (UUID). Run `/gla:fix-uuids` |
+| media_id starts with CAMS... | Run `/gla:fix-uuids` to extract UUID from URL |
 | Upscale permission denied | Requires PAYGATE_TIER_TWO account |
 
 ## License

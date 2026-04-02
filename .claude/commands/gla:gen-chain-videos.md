@@ -61,4 +61,4 @@ Print table:
 | Scene | Order | Chain | endImage from | video_status | Duration |
 |-------|-------|-------|---------------|-------------|----------|
 
-Print: "Chained videos ready. Run /concat <VID> to merge."
+Print: "Chained videos ready. Run /gla:concat <VID> to merge."

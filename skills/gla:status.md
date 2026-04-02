@@ -57,7 +57,7 @@ curl -s http://127.0.0.1:8100/api/requests/pending
 Print counts: X/Y refs ready, X/Y images done, X/Y videos done, X/Y upscaled.
 
 Suggest next action:
-- If refs missing → "Run /gen-refs <PID>"
-- If images missing → "Run /gen-images <PID> <VID>"
-- If videos missing → "Run /gen-videos <PID> <VID>"
-- If all done → "Run /concat <VID>"
+- If refs missing → "Run /gla:gen-refs <PID>"
+- If images missing → "Run /gla:gen-images <PID> <VID>"
+- If videos missing → "Run /gla:gen-videos <PID> <VID>"
+- If all done → "Run /gla:concat <VID>"
