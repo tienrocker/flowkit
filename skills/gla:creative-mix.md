@@ -37,14 +37,33 @@ Scene 3:  Wide shot, hero walks to sword               (ROOT, i2v)
 ```
 Result: One 8s moment becomes **40s of rich multi-angle cinema**.
 
+**CRITICAL: Close-up framing rule for i2v**
+
+The starting image is the AI's ONLY visual reference for the video. If the image is an extreme macro (just an eye, just a hand), the AI has NO information about the character's face, outfit, or environment. When the video prompt says "zoom out", the AI invents a DIFFERENT character.
+
+Two safe patterns for close-up INSERTs:
+
+- **Pattern A (Stay in frame):** Keep video movement within the same framing. Macro stays macro — subtle shifts, light changes, no zoom out.
+  ```
+  Start: eye macro → Video: eye flutter, light shifts, pupil dilates (NO pull-back)
+  ```
+- **Pattern B (Chain with anchor):** Use `end_image` from the parent scene (medium/wide shot) to anchor the character. The AI transitions from close-up TO the known character.
+  ```
+  Start: eye macro (INSERT image)
+  End: parent scene medium shot (anchor)
+  → i2v_fl smoothly reveals the correct character
+  ```
+
+Pattern B is preferred for dramatic close-ups — you get the cinematic zoom AND character consistency.
+
 **Camera angle ideas for edits** (see `/gla:camera-guide`):
-- `"Extreme close-up of [character]'s eyes, shallow DOF"` — emotion
+- `"Extreme close-up of [character]'s eyes, shallow DOF"` — emotion (use Pattern A or B!)
 - `"Over-the-shoulder shot from [other character], watching"` — relationship
 - `"Low angle looking up at [subject], dramatic lighting"` — power
 - `"Bird's eye top-down view of the scene"` — scale/context
 - `"Dutch angle, tilted frame, tension"` — unease
 - `"POV shot from [character]'s perspective"` — immersion
-- `"Macro detail shot of [object]"` — texture/significance
+- `"Macro detail shot of [object]"` — texture/significance (use Pattern A or B!)
 
 ### T3: Reference Video (r2v)
 Generate video purely from character reference images — no start frame.
