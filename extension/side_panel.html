@@ -21,6 +21,11 @@
       --font:     'DM Mono', 'Fira Code', 'Cascadia Code', monospace;
     }
 
+    html, body {
+      height: 100%;
+      margin: 0;
+    }
+
     body {
       width: 100%;
       min-width: 280px;
@@ -29,6 +34,8 @@
       font-family: var(--font);
       font-size: 12px;
       line-height: 1.5;
+      display: flex;
+      flex-direction: column;
     }
 
     /* ── Header ─────────────────────────────────────── */
@@ -216,8 +223,15 @@
       color: var(--muted);
     }
 
+    .log-section {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
     .log-table-wrap {
-      height: 220px;
+      flex: 1;
       overflow-y: auto;
       scrollbar-width: thin;
       scrollbar-color: var(--border) transparent;
@@ -396,27 +410,29 @@
   </div>
 
   <!-- Request log -->
-  <div class="log-header">
-    Request Log
-    <span id="log-count">0</span>
-  </div>
+  <div class="log-section">
+    <div class="log-header">
+      Request Log
+      <span id="log-count">0</span>
+    </div>
 
-  <div class="log-table-wrap">
-    <table>
-      <thead>
-        <tr>
-          <th>Type</th>
-          <th>Time</th>
-          <th>Status</th>
-          <th>Error</th>
-        </tr>
-      </thead>
-      <tbody id="log-body">
-        <tr>
-          <td colspan="4" class="log-empty">No requests yet</td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="log-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Type</th>
+            <th>Time</th>
+            <th>Status</th>
+            <th>Error</th>
+          </tr>
+        </thead>
+        <tbody id="log-body">
+          <tr>
+            <td colspan="4" class="log-empty">No requests yet</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 
   <!-- Actions -->
