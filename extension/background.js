@@ -226,10 +226,15 @@ async function handleTrpcRequest(msg) {
     return;
   }
 
+  const fetchHeaders = { 'Content-Type': 'application/json', ...headers };
+  if (flowKey) {
+    fetchHeaders['authorization'] = `Bearer ${flowKey}`;
+  }
+
   try {
     const resp = await fetch(url, {
       method,
-      headers: { 'Content-Type': 'application/json', ...headers },
+      headers: fetchHeaders,
       body: body ? JSON.stringify(body) : undefined,
       credentials: 'include',
     });
