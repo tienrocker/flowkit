@@ -15,12 +15,13 @@ class RequestCreate(BaseModel):
     @model_validator(mode="after")
     def check_required_fields(self) -> "RequestCreate":
         req_type = self.type
-        if req_type == "GENERATE_CHARACTER_IMAGE":
+        if req_type in ("GENERATE_CHARACTER_IMAGE", "REGENERATE_CHARACTER_IMAGE", "EDIT_CHARACTER_IMAGE"):
             if not self.character_id:
-                raise ValueError("character_id is required for GENERATE_CHARACTER_IMAGE")
+                raise ValueError(f"character_id is required for {req_type}")
             if not self.project_id:
-                raise ValueError("project_id is required for GENERATE_CHARACTER_IMAGE")
-        elif req_type in ("GENERATE_IMAGE", "GENERATE_VIDEO", "GENERATE_VIDEO_REFS", "UPSCALE_VIDEO", "EDIT_IMAGE"):
+                raise ValueError(f"project_id is required for {req_type}")
+        elif req_type in ("GENERATE_IMAGE", "REGENERATE_IMAGE", "EDIT_IMAGE",
+                          "GENERATE_VIDEO", "GENERATE_VIDEO_REFS", "UPSCALE_VIDEO"):
             if not self.scene_id:
                 raise ValueError(f"scene_id is required for {req_type}")
             if not self.project_id:

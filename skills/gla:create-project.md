@@ -1,7 +1,7 @@
 Create a new Google Flow video project. Ask the user for:
 
 1. **Project name** and **story** (brief plot summary)
-2. **Characters** — name + visual description (appearance only, not personality)
+2. **Characters** — name + visual description of their **base default look in ONE outfit only**. No scene-specific variants (e.g. "glamorous in studio, sporty in gym"). The reference image must be a single clean image, not a multi-panel grid. Different outfits per scene come from the scene prompts, not the character description.
 3. **Locations** — name + visual description of key places
 4. **Visual assets** — name + visual description of key props/objects
 5. **Number of scenes** and **orientation** (VERTICAL or HORIZONTAL)

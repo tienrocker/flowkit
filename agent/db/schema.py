@@ -157,11 +157,18 @@ async def init_db():
         if "source_media_id" not in req_columns:
             await db.execute("ALTER TABLE request ADD COLUMN source_media_id TEXT")
             logger.info("Migrated: added source_media_id column to request table")
-        # Migration: rename GENERATE_IMAGES -> GENERATE_IMAGE in request table
+        # Migration: ensure request table CHECK constraint includes all request types
         # SQLite can't alter CHECK constraints, so recreate the table
         cursor = await db.execute("SELECT sql FROM sqlite_master WHERE name='request' AND type='table'")
         row = await cursor.fetchone()
-        if row and 'GENERATE_IMAGES' in row[0] and 'GENERATE_IMAGE,' not in row[0]:
+        needs_recreate = False
+        if row:
+            table_sql = row[0]
+            if 'GENERATE_IMAGES' in table_sql and 'GENERATE_IMAGE,' not in table_sql:
+                needs_recreate = True  # old GENERATE_IMAGES typo
+            if 'REGENERATE_IMAGE' not in table_sql:
+                needs_recreate = True  # missing REGENERATE/EDIT types
+        if needs_recreate:
             await db.execute("PRAGMA foreign_keys=OFF")
             await db.execute("ALTER TABLE request RENAME TO _request_old")
             await db.executescript("""

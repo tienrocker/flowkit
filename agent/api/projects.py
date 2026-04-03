@@ -64,9 +64,10 @@ def _build_character_profile(char_name: str, char_desc: str | None, story: str,
     )
 
     image_prompt = (
-        f"Reference image of {base_desc}. "
+        f"Single reference image of {base_desc}. "
         f"{style} animated style, Pixar-quality rendering. "
         f"{composition} "
+        f"ONE single image only, NOT a multi-panel grid or multiple views. "
         f"Studio lighting, highly detailed"
     )
 
