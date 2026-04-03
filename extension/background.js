@@ -226,6 +226,9 @@ async function handleTrpcRequest(msg) {
     return;
   }
 
+  setState('running');
+  metrics.requestCount++;
+
   const fetchHeaders = { 'Content-Type': 'application/json', ...headers };
   if (flowKey) {
     fetchHeaders['authorization'] = `Bearer ${flowKey}`;
@@ -239,10 +242,17 @@ async function handleTrpcRequest(msg) {
       credentials: 'include',
     });
     const data = await resp.json();
+    metrics.successCount++;
+    chrome.storage.local.set({ metrics });
     sendToAgent({ id, status: resp.status, data });
   } catch (e) {
     console.error('[FlowAgent] tRPC request failed:', e);
+    metrics.failedCount++;
+    metrics.lastError = e.message || 'TRPC_FETCH_FAILED';
+    chrome.storage.local.set({ metrics });
     sendToAgent({ id, error: e.message || 'TRPC_FETCH_FAILED' });
+  } finally {
+    setState('idle');
   }
 }
 
@@ -255,8 +265,7 @@ async function handleApiRequest(msg) {
     return;
   }
 
-  if (!url.startsWith('https://aisandbox-pa.googleapis.com/') &&
-      !url.startsWith('https://labs.google/')) {
+  if (!url.startsWith('https://aisandbox-pa.googleapis.com/')) {
     sendToAgent({ id, error: 'INVALID_URL' });
     return;
   }

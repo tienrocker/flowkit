@@ -84,6 +84,9 @@ class FlowClient:
 
     async def _sync_tier(self):
         """Detect current tier from credits API and update all active projects."""
+        if getattr(self, '_sync_in_progress', False):
+            return
+        self._sync_in_progress = True
         try:
             result = await self.get_credits()
             data = result.get("data", result)
@@ -99,6 +102,8 @@ class FlowClient:
                                 p["id"][:12], p.get("user_paygate_tier"), tier)
         except Exception as e:
             logger.warning("Failed to sync tier: %s", e)
+        finally:
+            self._sync_in_progress = False
 
     async def _send(self, method: str, params: dict, timeout: float = 300) -> dict:
         """Send request to extension and wait for response.

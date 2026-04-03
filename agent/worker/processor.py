@@ -7,7 +7,6 @@ import asyncio
 import base64
 import json
 import logging
-import re
 import time
 
 import aiohttp
@@ -72,14 +71,19 @@ async def _prerequisites_met(req: dict, orientation: str) -> bool:
     req_type = req.get("type", "")
     prefix = "vertical" if orientation == "VERTICAL" else "horizontal"
 
-    # Video gen needs scene image to be ready
+    # Video gen needs scene image to be ready; upscale needs video to be ready
     if req_type in ("GENERATE_VIDEO", "GENERATE_VIDEO_REFS", "UPSCALE_VIDEO"):
         scene = await crud.get_scene(req.get("scene_id"))
         if not scene:
             return True  # let _dispatch handle "scene not found"
-        if not scene.get(f"{prefix}_image_media_id"):
-            logger.info("VIDEO prereq deferred: scene=%s no %s_image_media_id", req.get("scene_id","")[:12], prefix)
-            return False
+        if req_type in ("GENERATE_VIDEO", "GENERATE_VIDEO_REFS"):
+            if not scene.get(f"{prefix}_image_media_id"):
+                logger.info("VIDEO prereq deferred: scene=%s no %s_image_media_id", req.get("scene_id","")[:12], prefix)
+                return False
+        elif req_type == "UPSCALE_VIDEO":
+            if not scene.get(f"{prefix}_video_media_id"):
+                logger.info("UPSCALE prereq deferred: scene=%s no %s_video_media_id", req.get("scene_id","")[:12], prefix)
+                return False
 
     # Edit requests need source media (own image or parent's for INSERT scenes)
     if req_type in ("EDIT_IMAGE", "EDIT_CHARACTER_IMAGE"):
@@ -209,6 +213,9 @@ async def _reupload_media(url: str, project_id: str) -> str | None:
                 image_bytes = await resp.read()
                 content_type = resp.headers.get("Content-Type", "image/jpeg")
 
+        if not content_type.startswith("image/"):
+            logger.warning("Re-upload: unexpected content-type %s from %s", content_type, url[:60])
+            return None
         image_b64 = base64.b64encode(image_bytes).decode()
         mime = content_type.split(";")[0].strip()
 
@@ -284,13 +291,12 @@ async def _handle_failure(rid: str, req: dict, result: dict):
 
     error_lower = str(error_msg).lower()
 
-    # reCAPTCHA errors: retry up to 10 times with 10s fixed delay
+    # reCAPTCHA errors: retry up to 10 times — deferred dict in main loop handles delay
     if "captcha" in error_lower or "recaptcha" in error_lower:
         retry = req.get("retry_count", 0) + 1
         if retry < 10:
-            await asyncio.sleep(10)
             await crud.update_request(rid, status="PENDING", retry_count=retry, error_message=str(error_msg))
-            logger.warning("Request %s reCAPTCHA failed (retry %d/10), retrying in 10s", rid[:8], retry)
+            logger.warning("Request %s reCAPTCHA failed (retry %d/10), will retry", rid[:8], retry)
             return
         else:
             await crud.update_request(rid, status="FAILED", error_message=str(error_msg))
