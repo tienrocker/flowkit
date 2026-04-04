@@ -71,10 +71,13 @@ class WorkerController:
         """Signal the worker to stop after current tasks drain."""
         self._shutdown.set()
 
-    async def drain(self):
-        """Wait until all active tasks complete."""
-        while self._active_ids:
+    async def drain(self, timeout: float = 30.0):
+        """Wait until all active tasks complete, with timeout."""
+        deadline = time.monotonic() + timeout
+        while self._active_ids and time.monotonic() < deadline:
             await asyncio.sleep(0.5)
+        if self._active_ids:
+            logger.warning("Drain timeout: %d tasks still active after %.0fs", len(self._active_ids), timeout)
 
     async def _cleanup_stale_processing(self):
         """Reset any requests stuck in PROCESSING state from a previous run."""
@@ -99,14 +102,17 @@ class WorkerController:
                     continue
 
                 now = time.time()
-                pending = await crud.list_pending_requests()
-
-                # Sort by priority
-                pending.sort(key=lambda r: _TYPE_PRIORITY.get(r.get("type", ""), 99))
-
                 slots_available = MAX_CONCURRENT_REQUESTS - len(self._active_ids)
-                if pending and slots_available > 0:
-                    logger.info("Worker: %d pending, %d active, %d slots",
+                if slots_available <= 0:
+                    await asyncio.sleep(POLL_INTERVAL)
+                    continue
+
+                pending = await crud.list_actionable_requests(
+                    exclude_ids=self._active_ids, limit=slots_available
+                )
+
+                if pending:
+                    logger.info("Worker: %d actionable, %d active, %d slots",
                                 len(pending), len(self._active_ids), slots_available)
 
                 for req in pending:
@@ -394,6 +400,8 @@ async def _handle_failure(rid: str, req: dict, result: dict, retry_after: dict =
         if retry_after is not None:
             ra = retry_after.get(rid, 0.0)
             if ra > now:
+                # Still in backoff — reset to PENDING so it's not stuck in PROCESSING
+                await crud.update_request(rid, status="PENDING", error_message=str(error_msg))
                 return
             retry_after[rid] = now + min(2 ** retry * 10, 300)
         await crud.update_request(rid, status="PENDING", retry_count=retry, error_message=str(error_msg))
