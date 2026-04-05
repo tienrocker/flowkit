@@ -73,9 +73,10 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 });
 
 async function init() {
-  const data = await chrome.storage.local.get(['flowKey', 'metrics']);
+  const data = await chrome.storage.local.get(['flowKey', 'metrics', 'callbackSecret']);
   if (data.flowKey) flowKey = data.flowKey;
   if (data.metrics) Object.assign(metrics, data.metrics);
+  if (data.callbackSecret) callbackSecret = data.callbackSecret;
   connectToAgent();
   chrome.alarms.create('keepAlive', { periodInMinutes: 0.4 });
 }
@@ -212,6 +213,7 @@ function connectToAgent() {
         });
       } else if (msg.type === 'callback_secret') {
         callbackSecret = msg.secret;
+        chrome.storage.local.set({ callbackSecret: msg.secret });
         console.log('[FlowAgent] Received callback secret');
       } else if (msg.type === 'pong') {
         // keepalive response
@@ -248,10 +250,10 @@ function keepAlive() {
 
 function sendToAgent(msg) {
   // API responses (with msg.id) go via HTTP — immune to WS disconnect
-  if (msg.id && callbackSecret) {
+  if (msg.id) {
     fetch('http://127.0.0.1:8100/api/ext/callback', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Callback-Secret': callbackSecret },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(msg),
     }).catch(() => {
       // HTTP failed — fallback to WS

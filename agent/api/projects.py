@@ -291,8 +291,12 @@ class ThumbnailResponse(BaseModel):
 @router.post("/{pid}/generate-thumbnail", response_model=ThumbnailResponse)
 async def generate_thumbnail(pid: str, body: ThumbnailRequest):
     """Generate a thumbnail image for a project via Google Flow API (synchronous, no queue)."""
+    import logging
+    logger = logging.getLogger(__name__)
     from agent.materials import get_material
     from agent.sdk.services.result_handler import parse_result
+
+    logger.info("generate_thumbnail: started for project %s", pid)
 
     client = get_flow_client()
     if not client.connected:
@@ -304,8 +308,7 @@ async def generate_thumbnail(pid: str, body: ThumbnailRequest):
         raise HTTPException(404, "Project not found")
 
     # Build full prompt: prepend material scene_prefix for style consistency
-    project_dict = project if isinstance(project, dict) else project.model_dump()
-    material_id = project_dict.get("material") or "3d_pixar"
+    material_id = getattr(project, "material", None) or "realistic"
     material = get_material(material_id)
     scene_prefix = material["scene_prefix"] if material and material.get("scene_prefix") else ""
     full_prompt = f"{scene_prefix} {body.prompt}".strip() if scene_prefix else body.prompt
@@ -317,20 +320,22 @@ async def generate_thumbnail(pid: str, body: ThumbnailRequest):
         valid_ids = []
         missing = []
         for entity in entities:
-            if entity["name"] not in body.character_names:
+            name = entity["name"] if isinstance(entity, dict) else entity.name
+            mid = entity.get("media_id") if isinstance(entity, dict) else getattr(entity, "media_id", None)
+            if name not in body.character_names:
                 continue
-            mid = entity.get("media_id")
             if mid:
                 valid_ids.append(mid)
             else:
-                missing.append(entity["name"])
+                missing.append(name)
         if missing:
             raise HTTPException(400, f"Missing reference images for: {', '.join(missing)}. Generate ref images first.")
         character_media_ids = valid_ids if valid_ids else None
 
     aspect_ratio = _ASPECT_RATIO_MAP.get(body.aspect_ratio.upper(), "IMAGE_ASPECT_RATIO_LANDSCAPE")
-    tier = project_dict.get("user_paygate_tier", "PAYGATE_TIER_TWO")
+    tier = getattr(project, "user_paygate_tier", "PAYGATE_TIER_TWO") or "PAYGATE_TIER_TWO"
 
+    logger.info("generate_thumbnail: calling generate_images prompt=%s refs=%s", full_prompt[:60], character_media_ids)
     raw = await client.generate_images(
         prompt=full_prompt,
         project_id=pid,
@@ -338,13 +343,14 @@ async def generate_thumbnail(pid: str, body: ThumbnailRequest):
         user_paygate_tier=tier,
         character_media_ids=character_media_ids,
     )
+    logger.info("generate_thumbnail: generate_images returned, error=%s", raw.get("error") if isinstance(raw, dict) else "n/a")
 
     gen_result = parse_result(raw, "GENERATE_IMAGE")
     if not gen_result.success:
         raise HTTPException(502, gen_result.error or "Image generation failed")
 
     # Download and save to output/{project_name}/{filename}
-    project_name = re.sub(r"[^\w\s-]", "", project_dict.get("name", "project")).strip().replace(" ", "_").lower()
+    project_name = re.sub(r"[^\w\s-]", "", getattr(project, "name", "project")).strip().replace(" ", "_").lower()
     out_dir = _PROJECT_ROOT / "output" / project_name
     out_dir.mkdir(parents=True, exist_ok=True)
     output_path = out_dir / body.output_filename

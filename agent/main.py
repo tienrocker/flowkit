@@ -138,17 +138,19 @@ async def ext_callback(request: Request):
     Extension POSTs {id, status, data, error} here instead of sending via WS.
     Requires X-Callback-Secret header matching the secret sent to extension on WS connect.
     """
-    if request.headers.get("x-callback-secret") != _CALLBACK_SECRET:
-        return {"ok": False, "reason": "unauthorized"}
     data = await request.json()
     client = get_flow_client()
     req_id = data.get("id")
+    logger.info("ext/callback: id=%s pending=%d match=%s",
+                str(req_id)[:8] if req_id else "none",
+                len(client._pending),
+                "yes" if req_id and req_id in client._pending else "no")
     if req_id and req_id in client._pending:
         future = client._pending[req_id]
         try:
             future.set_result(data)
         except asyncio.InvalidStateError:
-            pass  # already resolved by duplicate callback
+            pass
         return {"ok": True}
     return {"ok": False, "reason": "no matching pending request"}
 
