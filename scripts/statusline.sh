@@ -105,24 +105,28 @@ processing=$(curl -s --max-time 1 "$BASE/api/requests?status=PROCESSING" 2>/dev/
 
 short_name=$(echo "$proj_name" | cut -c1-15)
 
-# 4K downloaded count (local files in output/*/4k_raw/ or output/4k_raw/)
-proj_slug=$(echo "$proj_name" | tr '[:upper:]' '[:lower:]' | tr ' ' '_')
+# 4K downloaded count — check project-specific dir only
+proj_slug=$(python3 -c "
+import unicodedata, sys
+s = sys.argv[1]
+s = unicodedata.normalize('NFD', s)
+s = ''.join(c for c in s if unicodedata.category(c) != 'Mn')
+s = s.lower().replace(' ', '_').replace('-', '')
+s = ''.join(c for c in s if c.isalnum() or c == '_')
+print(s)
+" "$proj_name" 2>/dev/null)
 dl_count=0
-for dir in "output/${proj_slug}/4k_raw" "output/4k_raw"; do
-  if [ -d "$dir" ]; then
-    dl_count=$(ls "$dir"/*.mp4 2>/dev/null | wc -l | tr -d ' ')
-    break
-  fi
-done
+if [ -d "output/${proj_slug}/4k_raw" ]; then
+  dl_count=$(ls "output/${proj_slug}/4k_raw"/*.mp4 2>/dev/null | wc -l | tr -d ' ')
+fi
 
-# TTS count
+# TTS count — check project-specific dir, fallback to video dir
 tts_count=0
-for dir in "output/${proj_slug}/tts" "output/tts/${vid_id}"; do
-  if [ -d "$dir" ]; then
-    tts_count=$(ls "$dir"/scene_*.wav 2>/dev/null | wc -l | tr -d ' ')
-    break
-  fi
-done
+if [ -d "output/${proj_slug}/tts" ]; then
+  tts_count=$(ls "output/${proj_slug}/tts"/scene_*.wav 2>/dev/null | wc -l | tr -d ' ')
+elif [ -d "output/tts/${vid_id}" ]; then
+  tts_count=$(ls "output/tts/${vid_id}"/scene_*.wav 2>/dev/null | wc -l | tr -d ' ')
+fi
 
 flow_str=""
 [ -n "$credits_info" ] && flow_str=" ${V}${credits_info}${R}"
