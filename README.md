@@ -24,6 +24,8 @@ Standalone system to generate AI videos via Google Flow API. Uses a Chrome exten
 
 This checks and installs: Python 3.10+, pip, ffmpeg, ffprobe, Chrome, creates venv, installs dependencies, verifies imports.
 
+> **Windows:** Use [WSL](https://learn.microsoft.com/en-us/windows/wsl/install) (`wsl --install`) or Git Bash. All bash scripts and commands assume a Unix shell.
+
 ### Manual setup
 
 ```bash
@@ -287,12 +289,41 @@ Ready-to-use workflow recipes in `skills/` (also available as `/slash-commands` 
 |-------|-------------|
 | `/gla:camera-guide` | Camera angles, movements, lighting, DOF for cinematic video prompts |
 
+### TTS & Narration
+
+| Skill | Description |
+|-------|-------------|
+| `/gla:gen-tts-template` | Create a voice template for consistent narration |
+| `/gla:gen-tts` | Generate TTS audio for scenes |
+| `/gla:gen-narrator` | Generate narrator text + TTS for all scenes |
+| `/gla:concat-fit-narrator` | Trim scene videos to fit narrator duration, then concat |
+
+### YouTube
+
+| Skill | Description |
+|-------|-------------|
+| `/gla:youtube-seo` | Generate SEO-optimized title, description, tags |
+| `/gla:brand-logo` | Apply channel icon watermark to video/thumbnails |
+| `/gla:youtube-upload` | Upload to YouTube with rule validation + scheduling |
+| `/gla:thumbnail` | Generate YouTube-optimized thumbnails |
+
 ### Utilities
 
 | Skill | Description |
 |-------|-------------|
 | `/gla:status` | Full project dashboard + recommended next action |
 | `/gla:fix-uuids` | Repair any CAMS... media_ids to UUID format |
+| `/gla:add-material` | Image material system |
+
+### AI CLI Compatibility
+
+Skills work with any AI CLI that can read files:
+
+| CLI | Instructions | How skills work |
+|-----|-------------|-----------------|
+| Claude Code | `CLAUDE.md` (auto-loaded) | Native `/gla:` slash commands |
+| Codex CLI | `AGENTS.md` → reads `CLAUDE.md` | User says `/gla:<name>`, agent reads `skills/gla:<name>.md` |
+| Gemini CLI | `GEMINI.md` → reads `CLAUDE.md` | Same pattern |
 
 ## Video Generation Techniques
 
@@ -337,6 +368,7 @@ Ready-to-use workflow recipes in `skills/` (also available as `/slash-commands` 
 
 ## Worker Behavior
 
+- **Max 5 concurrent requests** — Google Flow processes max 5 at a time. Submitting more causes stuck PROCESSING. Always batch in groups of 5: submit 5 → poll → next 5.
 - **10s cooldown** between API calls (anti-spam, configurable via `API_COOLDOWN`)
 - **Reference blocking** — scene image gen refuses if any referenced entity is missing `media_id`
 - **Skip completed** — won't re-generate already-completed assets
@@ -345,6 +377,21 @@ Ready-to-use workflow recipes in `skills/` (also available as `/slash-commands` 
 - **UUID enforcement** — extracts UUID from fifeUrl if response doesn't provide it directly
 - **Voice context** — auto-appends character `voice_description` to video prompts
 - **No background music** — auto-appends "no background music, keep sound effects" to all video prompts
+
+## Material System
+
+Every project must have a `material` field that controls the visual style of generated images. Set it at project creation.
+
+```bash
+# List available materials
+curl -s http://127.0.0.1:8100/api/materials
+
+# Set on project
+curl -X POST http://127.0.0.1:8100/api/projects \
+  -d '{"name": "...", "material": "3d_pixar", ...}'
+```
+
+Materials control both entity `image_prompt` style and scene `scene_prefix`. Examples: `realistic`, `3d_pixar`, `anime`, `stop_motion`, `minecraft`, `oil_painting`.
 
 ## Configuration
 
@@ -374,15 +421,94 @@ agent/
 ├── services/
 │   ├── flow_client.py   # WS bridge to extension
 │   ├── headers.py       # Randomized browser headers
+│   ├── tts.py           # OmniVoice TTS (subprocess-based)
 │   ├── scene_chain.py   # Continuation scene logic
 │   └── post_process.py  # ffmpeg trim/merge/music
 └── worker/
     └── processor.py     # Queue processor + poller
 
 extension/               # Chrome MV3 extension
-skills/                  # AI agent workflow recipes
-.claude/commands/        # Claude Code slash commands
+skills/                  # AI agent workflow recipes (CLI-agnostic)
+youtube/
+├── auth.py              # OAuth2 multi-channel auth
+├── upload.py            # Upload with scheduling + rule validation
+└── channels/            # Per-channel config (gitignored)
+    └── <channel_name>/
+        ├── client_secrets.json  # OAuth2 credentials
+        ├── token.json           # Auth token (auto-created)
+        ├── channel_rules.json   # Upload rules + SEO defaults
+        └── upload_history.json  # Upload log
+CLAUDE.md                # AI agent instructions (Claude Code)
+AGENTS.md                # AI agent instructions (Codex CLI)
+GEMINI.md                # AI agent instructions (Gemini CLI)
 ```
+
+## TTS Narration (OmniVoice)
+
+Optional narrator voice for scenes. Uses [OmniVoice](https://github.com/tuannguyenhoangit-droid/OmniVoice) — multilingual zero-shot TTS with voice cloning (600+ languages).
+
+### Setup
+
+See `skills/gla:gen-tts-template.md` for full install guide. Quick version:
+
+```bash
+pip install torch==2.8.0 torchaudio==2.8.0   # or +cu128 for NVIDIA
+pip install omnivoice
+python3 -c "from omnivoice import OmniVoice; print('OK')"
+```
+
+If OmniVoice is in a separate venv, point to it:
+```bash
+export TTS_PYTHON_BIN=/path/to/omnivoice-venv/bin/python3
+```
+
+### Workflow
+
+1. **Create voice template** — `/gla:gen-tts-template` — generates an anchor voice WAV
+2. **Add narrator text** to scenes — `PATCH /api/scenes/{id}` with `narrator_text`
+3. **Generate narration** — `/gla:gen-narrator` — voice-clones the template for each scene
+4. **Concat with narration** — `/gla:concat-fit-narrator` — trims scene videos to match TTS duration
+
+CPU-only recommended (MPS produces artifacts). ~15-30s per scene.
+
+## YouTube Upload Pipeline
+
+Automated upload with per-channel rules, SEO optimization, and brand watermarking.
+
+### Setup
+
+```bash
+# 1. Place OAuth credentials
+cp client_secrets.json youtube/channels/<channel_name>/
+
+# 2. Authenticate (opens browser)
+arch -arm64 python3 youtube/auth.py <channel_name>
+
+# 3. Token saved to youtube/channels/<channel_name>/token.json (auto-refreshes)
+```
+
+### Channel Rules (`channel_rules.json`)
+
+Each channel has a rules file controlling upload scheduling and SEO:
+
+```json
+{
+  "shorts": {"max_per_day": 3, "optimal_times": ["07:00", "12:00", "17:00"]},
+  "long_form": {"max_per_day": 1, "optimal_times": ["19:00"]},
+  "scheduling": {"min_gap_hours": 4, "avoid_hours": [0,1,2,3,4,5]},
+  "seo": {"niche": "...", "default_tags": [...], "title_max_chars": 65}
+}
+```
+
+### Skill Chain
+
+```
+/gla:youtube-seo    → generates title, description, hashtags, tags
+/gla:brand-logo     → applies channel icon watermark
+/gla:youtube-upload  → validates rules + uploads (auto-detects Short vs Long-form)
+```
+
+Upload validation checks: max per day, min gap between uploads, avoid dead hours. Auto-detects Short (<61s + vertical 9:16) vs Long-form.
 
 ## Troubleshooting
 

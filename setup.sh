@@ -6,6 +6,15 @@ echo "  Google Flow Agent — Setup"
 echo "========================================="
 echo ""
 
+# ─── Windows check ──────────────────────────────────────────
+if [[ "$(uname -s)" == MINGW* ]] || [[ "$(uname -s)" == MSYS* ]] || [[ "$(uname -s)" == CYGWIN* ]]; then
+    echo "Detected Windows (Git Bash / MSYS2)."
+    echo "  Tip: For best results, use WSL (Windows Subsystem for Linux)."
+    echo "  Install WSL: wsl --install"
+    echo "  Then re-run: bash setup.sh"
+    echo ""
+fi
+
 ERRORS=0
 
 # ─── Python ──────────────────────────────────────────────────
@@ -24,6 +33,7 @@ else
     echo "  Install: https://www.python.org/downloads/"
     echo "  macOS:   brew install python@3.12"
     echo "  Ubuntu:  sudo apt install python3 python3-pip python3-venv"
+    echo "  WSL:     sudo apt install python3 python3-pip python3-venv"
     ERRORS=$((ERRORS + 1))
 fi
 
@@ -107,6 +117,7 @@ else
     echo "  WARNING: jq not found (needed for statusline)"
     echo "  macOS:   brew install jq"
     echo "  Ubuntu:  sudo apt install jq"
+    echo "  WSL:     sudo apt install jq"
 fi
 
 # ─── Claude Code statusline ────────────────────────────────

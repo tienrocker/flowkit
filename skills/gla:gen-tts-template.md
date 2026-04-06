@@ -14,14 +14,19 @@ Create a reusable voice template for consistent narration across all scenes.
 OmniVoice is a multilingual zero-shot TTS model (600+ languages) with voice cloning.
 Source: https://github.com/tuannguyenhoangit-droid/OmniVoice
 
+> **Windows users:** Run all setup commands inside **WSL** or **Git Bash** (not CMD/PowerShell). The project's `setup.sh` and all bash scripts require a Unix shell.
+
 **Step 1 — Install PyTorch** (in a fresh venv recommended):
 
 ```bash
-# Apple Silicon (CPU — recommended for GLA, MPS produces gibberish)
+# macOS Apple Silicon (CPU — recommended for GLA, MPS produces gibberish)
 pip install torch==2.8.0 torchaudio==2.8.0
 
-# NVIDIA GPU
+# Linux / WSL with NVIDIA GPU
 pip install torch==2.8.0+cu128 torchaudio==2.8.0+cu128 --extra-index-url https://download.pytorch.org/whl/cu128
+
+# Linux / WSL CPU-only
+pip install torch==2.8.0 torchaudio==2.8.0
 ```
 
 **Step 2 — Install OmniVoice** (choose one):
@@ -40,7 +45,6 @@ git clone https://github.com/k2-fsa/OmniVoice.git && cd OmniVoice && pip install
 **Step 3 — Point GLA to the right Python** (if OmniVoice is in a separate venv):
 
 ```bash
-# Set TTS_PYTHON_BIN to the venv's python3 before starting the agent
 export TTS_PYTHON_BIN=/path/to/omnivoice-venv/bin/python3
 ```
 
