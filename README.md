@@ -1,4 +1,4 @@
-# Google Flow Agent
+# FlowKit
 
 Standalone system to generate AI videos via Google Flow API. Uses a Chrome extension as browser bridge for authentication, reCAPTCHA solving, and API proxying.
 
