@@ -71,13 +71,6 @@ The reference image system keeps characters consistent across an entire video. E
   <img src="docs/images/scene_hormuz_sunset.jpg" width="400" alt="Warship sailing into sunset" />
 </p>
 
-### Channel Branding (Auto-Generated Intro & Outro)
-
-<p align="center">
-  <img src="docs/images/branding_intro.jpg" width="400" alt="Auto-generated channel intro" />
-  <img src="docs/images/branding_outro.jpg" width="400" alt="Auto-generated channel outro" />
-</p>
-
 ### What the Pipeline Produces
 
 Each project goes through: **story → entities → reference images → scene images → 8s video clips → narration (TTS) → concat → thumbnails → YouTube upload** — all orchestrated via API or AI agent skills.
